@@ -16,10 +16,13 @@ public class RoomInfoResponseDto {
     private String roomId;
     private String roomName;
 
+    private Integer personCount;
+
     public RoomInfoResponseDto(Room room){
         maxPersonCount = room.getMaxCount();
         ownerId = room.getOwnerId();
         roomId = room.getRoomId();
         roomName = room.getRoomName();
+        personCount = room.getMemberList().size();
     }
 }

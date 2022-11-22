@@ -1,6 +1,7 @@
 package com.game.liar.service;
 
 import com.game.liar.dto.Room;
+import com.game.liar.dto.request.RoomIdAndSenderIdRequest;
 import com.game.liar.dto.request.RoomIdRequest;
 import com.game.liar.dto.request.RoomInfoRequest;
 import com.game.liar.dto.response.RoomInfoResponseDto;
@@ -41,27 +42,30 @@ public class RoomService {
     }
 
     public RoomInfoResponseDto getRoom(RoomIdRequest request) {
-        try{
+        try {
             Room room = repository.getRoom(request);
             return new RoomInfoResponseDto(room);
-        }
-        catch (NullPointerException e){
+        } catch (NullPointerException e) {
             throw new NotExistException("Request Room name does not exist");
         }
     }
 
-    public RoomInfoResponseDto deleteRoom(RoomIdRequest request){
-        try{
+    public RoomInfoResponseDto deleteRoom(RoomIdAndSenderIdRequest request) {
+        try {
             Room room = repository.deleteRoom(request);
             return new RoomInfoResponseDto(room);
-        }
-        catch (NullPointerException e){
+        } catch (NullPointerException e) {
             throw new NotExistException("Request Room name does not exist");
         }
     }
 
-    public RoomInfoResponseDto addRoom(RoomIdRequest request) throws MaxCountException {
+    public RoomInfoResponseDto addRoomMember(RoomIdAndSenderIdRequest request) throws MaxCountException {
         Room room = repository.addRoomMember(request);
+        return new RoomInfoResponseDto(room);
+    }
+
+    public RoomInfoResponseDto leaveRoomMember(RoomIdAndSenderIdRequest request){
+        Room room = repository.leaveRoomMember(request);
         return new RoomInfoResponseDto(room);
     }
 }

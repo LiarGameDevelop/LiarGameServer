@@ -23,9 +23,6 @@ class RoomControllerTest {
     private RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
     private RoomService roomService = Mockito.mock(RoomService.class);
 
-
-    //뭘 테스트하고싶은거니?
-    //RoomController를 만들어야한다.
     @Test
     public void 방만들기테스트() throws Exception{
         //Given

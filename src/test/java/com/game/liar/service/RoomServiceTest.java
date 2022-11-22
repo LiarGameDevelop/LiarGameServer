@@ -36,16 +36,19 @@ class RoomServiceTest {
         RoomInfoResponseDto result = roomService.create(roomInfo);
         //Then
         Assertions.assertThat(result).isNotNull();
+        assertThat(result.getRoomName()).isEqualTo(roomInfo.getRoomName());
+        assertThat(result.getOwnerId()).isEqualTo(roomInfo.getSenderId());
     }
 
     @Test
-    public void 방만들기_성공_sender정보없음() throws Exception {
+    public void 방만들기_Error_sender정보없음() throws Exception {
         //Given
         RoomInfoRequest roomInfo = new RoomInfoRequest();
         roomInfo.setRoomName("room12");
         roomInfo.setMaxPersonCount(5);
 
         assertThrows(NotExistException.class, ()->{roomService.create(roomInfo);});
+        assertThat(roomRepository.getRoomCount()).isEqualTo(0);
     }
 
     @Test
@@ -56,6 +59,7 @@ class RoomServiceTest {
         roomInfo.setSenderId(UUID.randomUUID().toString());
 
         assertThrows(NotExistException.class, ()->{roomService.create(roomInfo);});
+        assertThat(roomRepository.getRoomCount()).isEqualTo(0);
     }
 
     @Test
@@ -67,7 +71,7 @@ class RoomServiceTest {
         roomInfo.setSenderId(UUID.randomUUID().toString());
         RoomInfoResponseDto room = roomService.create(roomInfo);
 
-        RoomIdRequest idRequest = new RoomIdRequest(room.getRoomId(),room.getOwnerId());
+        RoomIdRequest idRequest = new RoomIdRequest(room.getRoomId());
 
         RoomInfoResponseDto result = roomService.getRoom(idRequest);
 
@@ -77,7 +81,7 @@ class RoomServiceTest {
     }
 
     @Test
-    public void 방찾기_실패() throws Exception {
+    public void 방찾기_Error() throws Exception {
         //Given
         RoomInfoRequest roomInfo = new RoomInfoRequest();
         roomInfo.setMaxPersonCount(5);
@@ -85,8 +89,7 @@ class RoomServiceTest {
         roomInfo.setSenderId(UUID.randomUUID().toString());
         Room room = roomRepository.create(roomInfo);
 
-        RoomIdRequest idRequest = new RoomIdRequest("error",room.getOwnerId());
-
+        RoomIdRequest idRequest = new RoomIdRequest("error");
 
         assertThrows(NotExistException.class, ()->{ roomService.getRoom(idRequest);});
     }

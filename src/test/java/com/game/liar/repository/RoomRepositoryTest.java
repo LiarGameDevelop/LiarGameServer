@@ -1,8 +1,10 @@
 package com.game.liar.repository;
 
 import com.game.liar.dto.Room;
+import com.game.liar.dto.request.RoomIdAndSenderIdRequest;
 import com.game.liar.dto.request.RoomIdRequest;
 import com.game.liar.dto.request.RoomInfoRequest;
+import com.game.liar.exception.NotAllowedActionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,10 +33,11 @@ class RoomRepositoryTest {
         //Then
         assertThat(roomRepository.getRoomCount()).isEqualTo(1);
         assertThat(result.getMemberList().size()).isEqualTo(1);
+        assertThat(result.getOwnerId()).isEqualTo(info.getSenderId());
     }
-    
+
     @Test
-    public void 방정보얻기 () throws Exception{
+    public void 방정보얻기_성공() throws Exception{
         //Given
         RoomInfoRequest info = new RoomInfoRequest();
         info.setRoomName("room1");
@@ -42,18 +45,18 @@ class RoomRepositoryTest {
         info.setSenderId(UUID.randomUUID().toString());
         Room room = roomRepository.create(info);
 
-        RoomIdRequest idRequest = new RoomIdRequest(room.getRoomId(),room.getOwnerId());
-        
+        RoomIdRequest idRequest = new RoomIdRequest(room.getRoomId());
+
         //When
         Room result = roomRepository.getRoom(idRequest);
-        
+
         //Then
         assertThat(room).isEqualTo(result);
         assertThat(roomRepository.getRoomCount()).isEqualTo(1);
     }
 
     @Test
-    public void 방삭제 () throws Exception{
+    public void 방삭제_성공() throws Exception{
         //Given
         RoomInfoRequest info = new RoomInfoRequest();
         info.setRoomName("room1");
@@ -61,12 +64,65 @@ class RoomRepositoryTest {
         info.setSenderId(UUID.randomUUID().toString());
         Room room = roomRepository.create(info);
 
-        RoomIdRequest idRequest = new RoomIdRequest(room.getRoomId(),room.getOwnerId());
+        RoomIdAndSenderIdRequest idRequest = new RoomIdAndSenderIdRequest(room.getRoomId(),room.getOwnerId());
 
         //When
         roomRepository.deleteRoom(idRequest);
 
         //Then
         assertThat(roomRepository.getRoomCount()).isEqualTo(0);
+    }
+
+    @Test
+    public void 방삭제_Error_존재하지않는방번호() throws Exception{
+        //Given
+        RoomInfoRequest info = new RoomInfoRequest();
+        info.setRoomName("room1");
+        info.setMaxPersonCount(5);
+        info.setSenderId(UUID.randomUUID().toString());
+        Room room = roomRepository.create(info);
+
+        RoomIdAndSenderIdRequest idRequest = new RoomIdAndSenderIdRequest("1234",room.getOwnerId());
+
+        //When
+        assertThrows(NullPointerException.class, ()->{roomRepository.deleteRoom(idRequest);});
+        //Then
+        assertThat(roomRepository.getRoomCount()).isEqualTo(1);
+    }
+
+    @Test
+    public void 방삭제_Error_owner매치에러() throws Exception{
+        //Given
+        RoomInfoRequest info = new RoomInfoRequest();
+        info.setRoomName("room1");
+        info.setMaxPersonCount(5);
+        info.setSenderId(UUID.randomUUID().toString());
+        Room room = roomRepository.create(info);
+
+        RoomIdAndSenderIdRequest idRequest = new RoomIdAndSenderIdRequest(room.getRoomId(),"1234");
+
+        //When
+        assertThrows(NotAllowedActionException.class, ()->{roomRepository.deleteRoom(idRequest);});
+        //Then
+        assertThat(roomRepository.getRoomCount()).isEqualTo(1);
+    }
+
+    @Test
+    public void 방입장_성공() throws Exception{
+        //Given
+        RoomInfoRequest info = new RoomInfoRequest();
+        info.setRoomName("room1");
+        info.setMaxPersonCount(5);
+        info.setSenderId(UUID.randomUUID().toString());
+        Room room = roomRepository.create(info);
+
+        RoomIdAndSenderIdRequest idRequest = new RoomIdAndSenderIdRequest(room.getRoomId(),"1234");
+
+        //When
+        Room result = roomRepository.addRoomMember(idRequest);
+        //Then
+        System.out.println(room);
+        System.out.println(result);
+        assertThat(room).isEqualTo(result);
     }
 }

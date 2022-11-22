@@ -12,6 +12,7 @@ import java.util.List;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode
 public class Room {
     @NotNull
     private Integer maxCount;
@@ -33,5 +34,10 @@ public class Room {
         sb.append(maxCount.toString());
         sb.append(") of people in the room.");
         throw new MaxCountException(sb.toString());
+    }
+
+    public boolean leaveMember(Member member){
+        memberList.remove(member);
+        return true;
     }
 }

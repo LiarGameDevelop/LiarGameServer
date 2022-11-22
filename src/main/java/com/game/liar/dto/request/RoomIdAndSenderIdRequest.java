@@ -6,13 +6,14 @@ import lombok.Setter;
 import lombok.ToString;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 
 @Getter
 @Setter
 @AllArgsConstructor
 @ToString
-public class RoomIdRequest {
+public class RoomIdAndSenderIdRequest {
     @NotBlank
     private String roomId;
+
+    private String senderId;
 }
