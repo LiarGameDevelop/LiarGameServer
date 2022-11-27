@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 class RoomControllerTest {
     private RoomRepository roomRepository = Mockito.mock(RoomRepository.class);
     private RoomService roomService = Mockito.mock(RoomService.class);
+    private GameController gameController = Mockito.mock(GameController.class);
 
     @Test
     public void 방만들기테스트() throws Exception{
@@ -30,7 +31,7 @@ class RoomControllerTest {
         roomInfo.setMaxPersonCount(5);
         roomInfo.setRoomName("room1");
         roomInfo.setSenderId(UUID.randomUUID().toString());
-        RoomController roomController = new RoomController(roomService);
+        RoomController roomController = new RoomController(roomService,gameController);
 
         //Stubbing
         when(roomRepository.getRoomCount()).thenReturn(1);

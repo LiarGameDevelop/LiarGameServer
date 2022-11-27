@@ -18,17 +18,25 @@ import java.util.List;
 @RestController
 @Slf4j
 public class RoomController {
-    public RoomController(RoomService roomService) {
-        this.roomService = roomService;
-    }
 
     private RoomService roomService;
+
+    public RoomController(RoomService roomService, GameController gameController) {
+        this.roomService = roomService;
+        this.gameController = gameController;
+    }
+
+    private GameController gameController;
     //해야할 역할은? 클라가 만들고 싶은 방의 정보를 받아서->방 만들기
 
     @PostMapping("/room")
     public RoomInfoResponseDto create(@Valid @RequestBody RoomInfoRequest request, HttpServletRequest httpRequest) throws MaxCountException {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
-        return roomService.create(request);
+        RoomInfoResponseDto response = roomService.create(request);
+        if (response != null) {
+            gameController.initialize(request.getRoomName());
+        }
+        return response;
     }
 
     @GetMapping("/room")
@@ -52,7 +60,11 @@ public class RoomController {
     @DeleteMapping("/room")
     public RoomInfoResponseDto remove(@Valid @RequestBody RoomIdAndSenderIdRequest request, HttpServletRequest httpRequest) {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
-        return roomService.deleteRoom(request);
+        RoomInfoResponseDto response = roomService.deleteRoom(request);
+        if (response != null) {
+            gameController.close(request.getRoomId());
+        }
+        return response;
     }
 
     public static String getClientIp(HttpServletRequest request) {

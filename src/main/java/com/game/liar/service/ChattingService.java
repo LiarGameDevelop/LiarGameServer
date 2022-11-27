@@ -10,7 +10,7 @@ import java.util.List;
 @Service
 @Slf4j
 public class ChattingService {
-    private List<ChatRequest> roomList = new ArrayList<ChatRequest>();
+    private List<ChatRequest> roomList = new ArrayList<>();
 
     public void save(ChatRequest request) {
         log.info("request : {}", request);

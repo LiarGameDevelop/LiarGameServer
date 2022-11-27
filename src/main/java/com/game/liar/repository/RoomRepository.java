@@ -15,11 +15,12 @@ import org.springframework.stereotype.Repository;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
 @Slf4j
 public class RoomRepository {
-    private final Map<String, Room> roomMap = new HashMap<>();
+    private final Map<String, Room> roomMap = new ConcurrentHashMap<>();
 
     public int getRoomCount() {
         return roomMap.size();

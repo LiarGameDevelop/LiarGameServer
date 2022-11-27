@@ -25,7 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ChattingControllerTest {
-    private Integer port=12345;
+    private Integer port=8080;
     private WebSocketStompClient webSocketStompClient;
 
     @BeforeEach
@@ -38,32 +38,33 @@ class ChattingControllerTest {
     public void 연결테스트 () throws Exception{
         //Given
         /*TODO: implement unittest for websocket*/
-//        StompSession session = webSocketStompClient
-//                .connect(String.format("ws://localhost:%d/ws-connection", port), new StompSessionHandlerAdapter() {
-//                })
-//                .get(1, SECONDS);
-//
-//        assertThat(session).isNotNull();
-//        BlockingQueue<String> blockingQueue = new ArrayBlockingQueue<>(1);
-//
-//        session.subscribe("/subscribe/room/1", new StompFrameHandler() {
-//
-//            @Override
-//            public Type getPayloadType(StompHeaders headers) {
-//                return String.class;
-//            }
-//
-//            @Override
-//            public void handleFrame(StompHeaders headers, Object payload) {
-//                blockingQueue.add((String) payload);
-//            }
-//        });
-//        //When
-//
-//        session.send("/publish/room/1", "Hello");
-//
-//        //Then
-//        await().atMost(1, SECONDS).untilAsserted(() -> assertEquals("Hello", blockingQueue.poll()));
+        StompSession session = webSocketStompClient
+                .connect(String.format("ws://localhost:%d/ws-connection", port), new StompSessionHandlerAdapter() {
+                })
+                .get(1, SECONDS);
+
+        assertThat(session).isNotNull();
+        BlockingQueue<String> blockingQueue = new ArrayBlockingQueue<>(1);
+
+        session.subscribe("/subscribe/room/1", new StompFrameHandler() {
+
+            @Override
+            public Type getPayloadType(StompHeaders headers) {
+                return String.class;
+            }
+
+            @Override
+            public void handleFrame(StompHeaders headers, Object payload) {
+                System.out.println((String)payload);
+                blockingQueue.add((String) payload);
+            }
+        });
+        //When
+
+        session.send("/publish/room/1", "Hello");
+
+        //Then
+        await().atMost(1, SECONDS).untilAsserted(() -> assertEquals("Hello", blockingQueue.poll()));
 
     }
 }

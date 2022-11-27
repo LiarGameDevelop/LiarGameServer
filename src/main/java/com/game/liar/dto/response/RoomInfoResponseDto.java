@@ -16,7 +16,7 @@ public class RoomInfoResponseDto {
     private String roomId;
     private String roomName;
 
-    private Integer personCount;
+    private int personCount;
 
     public RoomInfoResponseDto(Room room){
         maxPersonCount = room.getMaxCount();
