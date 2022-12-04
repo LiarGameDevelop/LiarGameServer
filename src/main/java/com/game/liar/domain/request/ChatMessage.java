@@ -1,4 +1,4 @@
-package com.game.liar.dto.request;
+package com.game.liar.domain.request;
 
 import lombok.*;
 

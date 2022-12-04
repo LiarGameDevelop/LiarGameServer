@@ -1,6 +1,5 @@
 package com.game.liar.dto.request;
 
-import com.game.liar.dto.GameState;
 import lombok.*;
 
 import javax.validation.constraints.NotBlank;
@@ -15,14 +14,17 @@ public class MessageRequest {
     private String senderId;
 
     @NotBlank
-    private MessageDetail message;
+    private MessageRequest.Message message;
+
+    @NotBlank
+    private String uuid;
 
     @Getter
     @Setter
     @ToString
     @AllArgsConstructor
-    public class MessageDetail{
+    public static class Message {
         String method;
-        String detail;
+        String body;
     }
 }

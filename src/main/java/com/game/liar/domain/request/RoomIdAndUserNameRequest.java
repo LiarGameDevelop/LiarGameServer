@@ -1,4 +1,4 @@
-package com.game.liar.dto.request;
+package com.game.liar.domain.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -15,5 +15,5 @@ public class RoomIdAndSenderIdRequest {
     @NotBlank
     private String roomId;
 
-    private String senderId;
+    private String username;
 }

@@ -15,7 +15,7 @@ public class MessageResponse {
     private String senderId;
 
     @NotBlank
-    private MessageDetail message;
+    private MessageResponse.Message message;
 
     @NotBlank
     private GameState status;
@@ -26,7 +26,9 @@ public class MessageResponse {
     @Setter
     @ToString
     @AllArgsConstructor
-    public static class MessageDetail{
-        String detail;
+    public static class Message {
+        String uuid;
+        String method;
+        String body;
     }
 }
