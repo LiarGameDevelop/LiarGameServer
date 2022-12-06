@@ -1,70 +1,127 @@
 package com.game.liar.controller;
 
+import com.game.liar.domain.request.ChatMessage;
+import com.game.liar.domain.request.MessageContainer;
+import com.game.liar.domain.response.MessageResponse;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.messaging.simp.stomp.StompFrameHandler;
-import org.springframework.messaging.simp.stomp.StompHeaders;
-import org.springframework.messaging.simp.stomp.StompSession;
-import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.messaging.converter.MappingJackson2MessageConverter;
+import org.springframework.messaging.simp.stomp.*;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 import org.springframework.web.socket.sockjs.client.SockJsClient;
+import org.springframework.web.socket.sockjs.client.Transport;
 import org.springframework.web.socket.sockjs.client.WebSocketTransport;
 
 import java.lang.reflect.Type;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.awaitility.Awaitility.await;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class ChattingControllerTest {
-    private Integer port=8080;
-    private WebSocketStompClient webSocketStompClient;
+    @LocalServerPort
+    private Integer port;
+    WebSocketStompClient stompClient;
+    StompSession stompSession;
 
     @BeforeEach
-    void setup() {
-        this.webSocketStompClient = new WebSocketStompClient(new SockJsClient(
-                Arrays.asList(new WebSocketTransport(new StandardWebSocketClient()))));
+    void init() throws ExecutionException, InterruptedException, TimeoutException {
+        stompClient = new WebSocketStompClient(new SockJsClient(createTransportClient()));
+        stompClient.setMessageConverter(new MappingJackson2MessageConverter());
+
+        stompSession = stompClient.connect("ws://localhost:" + port + "/ws-connection", new StompSessionHandlerAdapter() {
+        }).get(3, SECONDS);
+
+        assertThat(stompSession).isNotNull();
     }
 
     @Test
-    public void 연결테스트 () throws Exception{
-        //Given
-        /*TODO: implement unittest for websocket*/
-        StompSession session = webSocketStompClient
-                .connect(String.format("ws://localhost:%d/ws-connection", port), new StompSessionHandlerAdapter() {
-                })
-                .get(1, SECONDS);
+    public void 채팅서비스() throws Exception {
+        //given
+        PrivateStompHandler<ChatMessage> handler = new PrivateStompHandler<>(ChatMessage.class);
+        stompSession.subscribe("/subscribe/room/12345/chat", handler);
 
-        assertThat(session).isNotNull();
-        BlockingQueue<String> blockingQueue = new ArrayBlockingQueue<>(1);
+        //when
+        ChatMessage expectedMessage = new ChatMessage("abc", "hello");
+        stompSession.send("/publish/messages/12345", expectedMessage);
 
-        session.subscribe("/subscribe/room/1", new StompFrameHandler() {
+        //then
+        ChatMessage message = handler.getCompletableFuture().get(3, SECONDS);
 
-            @Override
-            public Type getPayloadType(StompHeaders headers) {
-                return String.class;
-            }
+        assertThat(message).isNotNull();
+        assertThat(message).isEqualTo(expectedMessage);
+    }
 
-            @Override
-            public void handleFrame(StompHeaders headers, Object payload) {
-                System.out.println((String)payload);
-                blockingQueue.add((String) payload);
-            }
-        });
-        //When
+    @Test
+    public void 채팅서비스_여러개_서로_간섭하지않아야한다() throws Exception {
+        stompSession =createStompSession();
+        StompSession stompSession1=createStompSession();
+        //given
+        PrivateStompHandler<ChatMessage> handler = new PrivateStompHandler<>(ChatMessage.class);
+        stompSession.subscribe("/subscribe/room/12345/chat", handler);
+        ChatMessage expectedMessage = new ChatMessage("abc", "hello");
+        stompSession.send("/publish/messages/12345", expectedMessage);
 
-        session.send("/publish/room/1", "Hello");
+        //when
+        PrivateStompHandler<ChatMessage> handler2 = new PrivateStompHandler<>(ChatMessage.class);
+        stompSession.subscribe("/subscribe/room/12346/chat", handler);
 
-        //Then
-        await().atMost(1, SECONDS).untilAsserted(() -> assertEquals("Hello", blockingQueue.poll()));
+        //then
+        ChatMessage message = handler.getCompletableFuture().get(3, SECONDS);
+        assertThat(stompSession).isNotNull();
+        assertThat(message).isNotNull();
+        assertThat(message).isEqualTo(expectedMessage);
 
+        assertThrows(TimeoutException.class,()->handler2.getCompletableFuture().get(3, SECONDS));
+    }
+
+    private StompSession createStompSession() throws ExecutionException, InterruptedException, TimeoutException {
+        WebSocketStompClient client = new WebSocketStompClient(new SockJsClient(createTransportClient()));
+        client.setMessageConverter(new MappingJackson2MessageConverter());
+        StompSession stompSession = client.connect("ws://localhost:" + port + "/ws-connection", new StompSessionHandlerAdapter() {
+        }).get(3, SECONDS);
+        return stompSession;
+    }
+
+    private List<Transport> createTransportClient() {
+        List<Transport> transports = new ArrayList<>(1);
+        transports.add(new WebSocketTransport(new StandardWebSocketClient()));
+        return transports;
+    }
+
+    private class PrivateStompHandler<T> implements StompFrameHandler {
+        private final CompletableFuture<T> completableFuture = new CompletableFuture<>();
+
+        public CompletableFuture<T> getCompletableFuture() {
+            return completableFuture;
+        }
+
+        private final Class<T> tClass;
+
+        public PrivateStompHandler(Class<T> tClass) {
+            this.tClass = tClass;
+        }
+
+        @Override
+        public Type getPayloadType(StompHeaders headers) {
+            return this.tClass;
+        }
+
+        @Override
+        public void handleFrame(StompHeaders headers, Object payload) {
+            completableFuture.complete((T) payload);
+        }
     }
 }

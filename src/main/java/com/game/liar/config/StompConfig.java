@@ -1,6 +1,11 @@
 package com.game.liar.config;
 
+import com.game.liar.event.PresenceEventListener;
+import com.game.liar.repository.ParticipantRepository;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Description;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -12,7 +17,6 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 public class StompConfig implements WebSocketMessageBrokerConfigurer {
     private final String ENDPOINT = "/ws-connection";
-    //private final String CORS_PATTERN = "http://127.0.0.1:*";
     private final String CORS_PATTERN = "*";
     /**
      * TODO: 다른 메세지브로커 사용할 수도 있음
@@ -29,5 +33,17 @@ public class StompConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint(ENDPOINT)
                 .setAllowedOriginPatterns(CORS_PATTERN)
                 .withSockJS();
+    }
+
+    @Bean
+    public PresenceEventListener presenceEventListener(SimpMessagingTemplate messagingTemplate) {
+        PresenceEventListener presence = new PresenceEventListener(messagingTemplate, participantRepository());
+        return presence;
+    }
+
+    @Bean
+    @Description("Keeps connected users")
+    public ParticipantRepository participantRepository() {
+        return new ParticipantRepository();
     }
 }

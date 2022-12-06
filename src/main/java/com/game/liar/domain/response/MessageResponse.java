@@ -1,6 +1,6 @@
-package com.game.liar.dto.response;
+package com.game.liar.domain.response;
 
-import com.game.liar.dto.GameState;
+import com.game.liar.domain.GameState;
 import lombok.*;
 
 import javax.validation.constraints.NotBlank;
@@ -10,6 +10,7 @@ import javax.validation.constraints.NotBlank;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
+@Builder(builderMethodName = "MessageResponseBuilder")
 public class MessageResponse {
     @NotBlank
     private String senderId;
@@ -18,17 +19,18 @@ public class MessageResponse {
     private MessageResponse.Message message;
 
     @NotBlank
-    private GameState status;
-
-    //TODO: do I need to distinguish which response handles which request?
+    private GameState state;
 
     @Getter
     @Setter
     @ToString
     @AllArgsConstructor
     public static class Message {
+        @NotBlank
         String uuid;
+        @NotBlank
         String method;
+        @NotBlank
         String body;
     }
 }

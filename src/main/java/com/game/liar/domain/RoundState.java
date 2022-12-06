@@ -1,4 +1,4 @@
-package com.game.liar.dto;
+package com.game.liar.domain;
 
 public enum RoundState {
     SELECT_LIAR,

@@ -1,6 +1,6 @@
 package com.game.liar.service;
 
-import com.game.liar.dto.request.ChatRequest;
+import com.game.liar.domain.request.ChatMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -10,9 +10,9 @@ import java.util.List;
 @Service
 @Slf4j
 public class ChattingService {
-    private List<ChatRequest> roomList = new ArrayList<>();
+    private List<ChatMessage> roomList = new ArrayList<>();
 
-    public void save(ChatRequest request) {
+    public void save(ChatMessage request) {
         log.info("request : {}", request);
     }
 }

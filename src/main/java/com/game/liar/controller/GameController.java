@@ -1,78 +1,158 @@
 package com.game.liar.controller;
 
-import com.game.liar.dto.request.MessageRequest;
-import com.game.liar.dto.response.MessageResponse;
-import com.game.liar.exception.NotExistException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.game.liar.domain.GameState;
+import com.game.liar.domain.Global;
+import com.game.liar.domain.request.MessageContainer;
+import com.game.liar.domain.response.GameStateResponse;
+import com.game.liar.domain.response.RoundInfoResponse;
+import com.game.liar.service.GameInfo;
+import com.game.liar.service.GameService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
+
+import static com.game.liar.domain.Global.*;
 
 @RestController
 @Slf4j
 public class GameController {
-    private Map<String, GameObject> gameObjectMap = new ConcurrentHashMap<>();
-    private RoomController roomController;
 
-    public GameController(RoomController roomController) {
-        this.roomController = roomController;
+    private static ObjectMapper objectMapper = new ObjectMapper();
+
+    private SimpMessagingTemplate messagingTemplate;
+    private GameService gameService;
+
+    public GameController(SimpMessagingTemplate messagingTemplate, GameService gameService) {
+        this.messagingTemplate = messagingTemplate;
+        this.gameService = gameService;
     }
 
-    @MessageMapping("/system/room/")
-    public void sendMessageFromGameManager(@Valid MessageRequest request) {
-        //TODO : apply observer pattern
-        if(gameObjectMap.containsKey(request.getSenderId())) {
-            GameObject gameManager = gameObjectMap.get(request.getSenderId());
-            MessageRequest.MessageDetail message = request.getMessage();
-            switch (message.getMethod()) {
-                case "changeStatus": {
-                    gameManager.changeStatus();
-                    gameManager.sendMessage(new MessageResponse.MessageDetail(gameManager.getStatus().toString()));
-                    break;
-                }
-                case "getStatus": {
-                    gameManager.sendMessage(new MessageResponse.MessageDetail(gameManager.getStatus().toString()));
-                    break;
-                }
-                default: {
-                    log.error("There is no method in game manager: {}", message.getMethod());
-                    throw new NotExistException("There is no method in game manager");
-                }
-
-            }
+    //TODO: use validation
+    @MessageMapping("/system/private/{roomId}")
+    public void sendHostMessage(@Payload MessageContainer request, @DestinationVariable("roomId") String roomId) {
+        log.info("message from room id({}) : {}", roomId, request);
+        if (gameService.checkRoomExist(roomId)) {
+            String method = request.getMessage().getMethod();
+            processMapper.get(method).process(request, roomId);
+        } else {
+            log.error("mapped room id does not exist");
         }
     }
 
-    protected void initialize(@NotNull String roomName) {
-
-        if (gameObjectMap.containsKey(roomName)) {
-            log.error("The game manager already exists");
-            return;
+    @MessageMapping("/system/public/{roomId}")
+    public void sendPublicMessage(@Valid @Payload MessageContainer request, @DestinationVariable("roomId") String roomId) {
+        if (gameService.checkRoomExist(roomId)) {
+            String method = request.getMessage().getMethod();
+            processMapper.get(method).process(request, roomId);
         }
-        GameObject obj = new GameObject();
+    }
+
+    public void addRoom(String roomName, String ownerId) {
+        gameService.addGame(roomName, ownerId);
+    }
+
+    @FunctionalInterface
+    public interface ProcessGame {
+        void process(MessageContainer request, String roomId);
+    }
+
+    ProcessGame getGameState = (request, roomId) -> {
+        GameInfo gameInfo = gameService.getGameState(roomId);
         try {
-            obj.initialize(roomName);
-            gameObjectMap.put(roomName, obj);
-            log.debug("game manager created");
-        } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            GameState state=gameInfo.getState();
+            sendHostMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_GAME_STATE, objectMapper.writeValueAsString(new GameStateResponse(gameInfo.getState()))), roomId);
+        } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+    };
 
+    ProcessGame startGame = (request, roomId) -> {
+        GameInfo gameInfo = gameService.startGame(request, roomId);
+        try {
+            sendHostMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_GAME_STARTED, objectMapper.writeValueAsString(new GameStateResponse(gameInfo.getState()))), roomId);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    };
+
+    ProcessGame startRound = (request, roomId) -> {
+        GameInfo gameInfo = gameService.startRound(request, roomId);
+        try {
+            sendHostMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_ROUND_STARTED, objectMapper.writeValueAsString(new RoundInfoResponse(gameInfo.getState(), gameInfo.getRound()))), roomId);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    };
+
+    ProcessGame selectLiar = (request, roomId) -> {
+        GameInfo gameInfo = gameService.selectLiar(request, roomId);
+        String body = "";
+        for (String userId : gameService.getUsersInRoom(roomId)) {
+            boolean liar = userId.equals(gameInfo.getLiarId());
+            try {
+                body = objectMapper.writeValueAsString(liar);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+            sendPrivateMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_LIAR_SELECTED, body), request.getSenderId());
+        }
+        gameService.nextGameState(roomId);
+    };
+
+    private final Map<String, ProcessGame> processMapper = new HashMap<String, ProcessGame>() {
+        {
+            put(Global.GET_GATE_STATE, getGameState);
+            put(Global.START_GAME, startGame);
+            put(Global.START_ROUND, startRound);
+            put(Global.SELECT_LIAR, selectLiar);
+            put(Global.OPEN_KEYWORD, startGame);
+            put(Global.IN_PROGRESS, startGame);
+            put(Global.VOTE_LIAR, startGame);
+            put(Global.OPEN_LIAR, startGame);
+            put(Global.REQUEST_LIAR_ANSWER, startGame);
+            put(Global.CHECK_LIAR_ANSWER, startGame);
+            put(Global.PUBLISH_SCORE, startGame);
+        }
+    };
+
+    public MessageContainer sendHostMessage(String uuid, MessageContainer.Message message, String roomId) {
+        MessageContainer response = MessageContainer.messageContainerBuilder()
+                .uuid(uuid)
+                .senderId("SERVER")
+                .message(message)
+                .build();
+        log.info("sendHostMessage. message: {}, roomId:{}", response, roomId);
+
+        messagingTemplate.convertAndSend(String.format("/subscribe/system/private/%s", roomId), response);
+        return response;
     }
 
-    protected void close(@NotNull String roomName) {
-        if (!gameObjectMap.containsKey(roomName)) {
-            log.error("The game manager does not exists");
-            return;
-        }
-        gameObjectMap.remove(roomName);
-        log.debug("game manager destroyed");
+    public void sendPrivateMessage(String uuid, MessageContainer.Message message, String senderId) {
+        MessageContainer response = MessageContainer.messageContainerBuilder()
+                .uuid(uuid)
+                .senderId("SERVER")
+                .message(message)
+                .build();
+
+        messagingTemplate.convertAndSend(String.format("/subscribe/system/private/%s", senderId), response);
+    }
+
+    public void sendPublicMessage(String uuid, MessageContainer.Message message, String roomId) {
+        MessageContainer response = MessageContainer.messageContainerBuilder()
+                .uuid(uuid)
+                .senderId("SERVER")
+                .message(message)
+                .build();
+
+        messagingTemplate.convertAndSend(String.format("/subscribe/system/public/%s", roomId), response);
     }
 }

@@ -1,4 +1,4 @@
-package com.game.liar.dto;
+package com.game.liar.domain;
 
 import com.game.liar.exception.MaxCountException;
 import lombok.*;
@@ -6,6 +6,7 @@ import lombok.*;
 import javax.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Getter
 @Setter
@@ -19,7 +20,7 @@ public class Room {
     @NotNull
     private String roomId;
     @NotNull
-    private String roomName;
+    private String ownerName;
     @NotNull
     private String ownerId;
     private final List<Member> memberList = new ArrayList<>();
@@ -29,15 +30,15 @@ public class Room {
             memberList.add(member);
             return true;
         }
-        StringBuilder sb = new StringBuilder();
-        sb.append("The maximum number(");
-        sb.append(maxCount.toString());
-        sb.append(") of people in the room.");
-        throw new MaxCountException(sb.toString());
+        throw new MaxCountException(String.format("The maximum number(%s) of people in the room.", maxCount.toString()));
     }
 
-    public boolean leaveMember(Member member){
-        memberList.remove(member);
-        return true;
+    public boolean leaveMember(String username) {
+        Optional<Member> member = memberList.stream().filter(m -> m.getUsername().equals(username)).findFirst();
+        if (member.isPresent()) {
+            memberList.remove(member.get());
+            return true;
+        }
+        return false;
     }
 }

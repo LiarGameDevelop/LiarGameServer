@@ -1,10 +1,11 @@
 package com.game.liar.controller;
 
-import com.game.liar.dto.request.RoomIdAndSenderIdRequest;
-import com.game.liar.dto.request.RoomIdRequest;
-import com.game.liar.dto.request.RoomInfoRequest;
-import com.game.liar.dto.response.RoomInfoResponseDto;
+import com.game.liar.domain.request.RoomIdAndUserNameRequest;
+import com.game.liar.domain.request.RoomIdRequest;
+import com.game.liar.domain.request.RoomInfoRequest;
+import com.game.liar.domain.response.RoomInfoResponseDto;
 import com.game.liar.exception.MaxCountException;
+import com.game.liar.service.GameService;
 import com.game.liar.service.RoomService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
@@ -34,7 +35,7 @@ public class RoomController {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
         RoomInfoResponseDto response = roomService.create(request);
         if (response != null) {
-            gameController.initialize(request.getRoomName());
+            gameController.addRoom(response.getRoomId(), response.getOwnerId());
         }
         return response;
     }
@@ -46,23 +47,24 @@ public class RoomController {
     }
 
     @PostMapping("/room/enter")
-    public RoomInfoResponseDto enterRoom(@Valid @RequestBody RoomIdAndSenderIdRequest request, HttpServletRequest httpRequest) throws MaxCountException {
+    public RoomInfoResponseDto enterRoom(@Valid @RequestBody RoomIdAndUserNameRequest request, HttpServletRequest httpRequest) throws MaxCountException {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
         return roomService.addRoomMember(request);
     }
 
     @PostMapping("/room/leave")
-    public RoomInfoResponseDto leaveRoom(@Valid @RequestBody RoomIdAndSenderIdRequest request, HttpServletRequest httpRequest) {
+    public RoomInfoResponseDto leaveRoom(@Valid @RequestBody RoomIdAndUserNameRequest request, HttpServletRequest httpRequest) {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
         return roomService.leaveRoomMember(request);
     }
 
     @DeleteMapping("/room")
-    public RoomInfoResponseDto remove(@Valid @RequestBody RoomIdAndSenderIdRequest request, HttpServletRequest httpRequest) {
+    public RoomInfoResponseDto remove(@Valid @RequestBody RoomIdAndUserNameRequest request, HttpServletRequest httpRequest) {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
         RoomInfoResponseDto response = roomService.deleteRoom(request);
         if (response != null) {
-            gameController.close(request.getRoomId());
+            //알리기
+            //gameController.(request.getRoomId());
         }
         return response;
     }

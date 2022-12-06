@@ -1,14 +1,12 @@
 package com.game.liar.repository;
 
-import com.game.liar.dto.Room;
-import com.game.liar.dto.request.RoomIdAndSenderIdRequest;
-import com.game.liar.dto.request.RoomIdRequest;
-import com.game.liar.dto.request.RoomInfoRequest;
+import com.game.liar.domain.Room;
+import com.game.liar.domain.request.RoomIdAndUserNameRequest;
+import com.game.liar.domain.request.RoomIdRequest;
+import com.game.liar.domain.request.RoomInfoRequest;
 import com.game.liar.exception.NotAllowedActionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -24,25 +22,22 @@ class RoomRepositoryTest {
     public void 방만들기_성공() throws Exception{
         //Given
         RoomInfoRequest info = new RoomInfoRequest();
-        info.setRoomName("room1");
+        info.setOwnerName("room1");
         info.setMaxPersonCount(5);
-        info.setSenderId(UUID.randomUUID().toString());
 
         //When
         Room result = roomRepository.create(info);
         //Then
         assertThat(roomRepository.getRoomCount()).isEqualTo(1);
         assertThat(result.getMemberList().size()).isEqualTo(1);
-        assertThat(result.getOwnerId()).isEqualTo(info.getSenderId());
     }
 
     @Test
     public void 방정보얻기_성공() throws Exception{
         //Given
         RoomInfoRequest info = new RoomInfoRequest();
-        info.setRoomName("room1");
+        info.setOwnerName("room1");
         info.setMaxPersonCount(5);
-        info.setSenderId(UUID.randomUUID().toString());
         Room room = roomRepository.create(info);
 
         RoomIdRequest idRequest = new RoomIdRequest(room.getRoomId());
@@ -59,12 +54,11 @@ class RoomRepositoryTest {
     public void 방삭제_성공() throws Exception{
         //Given
         RoomInfoRequest info = new RoomInfoRequest();
-        info.setRoomName("room1");
+        info.setOwnerName("room1");
         info.setMaxPersonCount(5);
-        info.setSenderId(UUID.randomUUID().toString());
         Room room = roomRepository.create(info);
 
-        RoomIdAndSenderIdRequest idRequest = new RoomIdAndSenderIdRequest(room.getRoomId(),room.getOwnerId());
+        RoomIdAndUserNameRequest idRequest = new RoomIdAndUserNameRequest(room.getRoomId(),room.getOwnerId());
 
         //When
         roomRepository.deleteRoom(idRequest);
@@ -77,12 +71,11 @@ class RoomRepositoryTest {
     public void 방삭제_Error_존재하지않는방번호() throws Exception{
         //Given
         RoomInfoRequest info = new RoomInfoRequest();
-        info.setRoomName("room1");
+        info.setOwnerName("room1");
         info.setMaxPersonCount(5);
-        info.setSenderId(UUID.randomUUID().toString());
         Room room = roomRepository.create(info);
 
-        RoomIdAndSenderIdRequest idRequest = new RoomIdAndSenderIdRequest("1234",room.getOwnerId());
+        RoomIdAndUserNameRequest idRequest = new RoomIdAndUserNameRequest("1234",room.getOwnerId());
 
         //When
         assertThrows(NullPointerException.class, ()->{roomRepository.deleteRoom(idRequest);});
@@ -94,12 +87,11 @@ class RoomRepositoryTest {
     public void 방삭제_Error_owner매치에러() throws Exception{
         //Given
         RoomInfoRequest info = new RoomInfoRequest();
-        info.setRoomName("room1");
+        info.setOwnerName("room1");
         info.setMaxPersonCount(5);
-        info.setSenderId(UUID.randomUUID().toString());
         Room room = roomRepository.create(info);
 
-        RoomIdAndSenderIdRequest idRequest = new RoomIdAndSenderIdRequest(room.getRoomId(),"1234");
+        RoomIdAndUserNameRequest idRequest = new RoomIdAndUserNameRequest(room.getRoomId(),"1234");
 
         //When
         assertThrows(NotAllowedActionException.class, ()->{roomRepository.deleteRoom(idRequest);});
@@ -111,12 +103,11 @@ class RoomRepositoryTest {
     public void 방입장_성공() throws Exception{
         //Given
         RoomInfoRequest info = new RoomInfoRequest();
-        info.setRoomName("room1");
+        info.setOwnerName("room1");
         info.setMaxPersonCount(5);
-        info.setSenderId(UUID.randomUUID().toString());
         Room room = roomRepository.create(info);
 
-        RoomIdAndSenderIdRequest idRequest = new RoomIdAndSenderIdRequest(room.getRoomId(),"1234");
+        RoomIdAndUserNameRequest idRequest = new RoomIdAndUserNameRequest(room.getRoomId(),"1234");
 
         //When
         Room result = roomRepository.addRoomMember(idRequest);

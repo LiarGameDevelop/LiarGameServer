@@ -1,4 +1,4 @@
-package com.game.liar.dto;
+package com.game.liar.domain;
 
 public class Global {
     /**
@@ -29,8 +29,16 @@ public class Global {
     public static final String START_GAME = "startGame";
     public static final String START_ROUND = "startRound";
     public static final String SELECT_LIAR = "selectLiar";
+    public static final String OPEN_KEYWORD = "openKeyword";
+
+    public static final String IN_PROGRESS = "inProgress";
     public static final String VOTE_LIAR = "voteLiar";
+    public static final String REQUEST_LIAR_ANSWER = "requestLiarAnswer";
+
     public static final String OPEN_LIAR = "openLiar";
-    public static final String IS_CORRECT_ANSWER = "isCorrectAnswer";
+    public static final String CHECK_LIAR_ANSWER = "checkLiarAnswer";
+    public static final String PUBLISH_SCORE = "publishScore";
+    public static final String END_ROUND = "endRound";
+    public static final String PUBLISH_RANKINGS = "publishRankings";
     public static final String GET_GATE_STATE = "getGameState";
 }

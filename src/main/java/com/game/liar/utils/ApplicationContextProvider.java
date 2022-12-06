@@ -1,4 +1,4 @@
-package com.game.liar.config;
+package com.game.liar.utils;
 
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;

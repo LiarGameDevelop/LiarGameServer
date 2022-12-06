@@ -1,18 +1,26 @@
-package com.game.liar.domain;
+package com.game.liar.event;
 
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.ToString;
 
 import java.util.Date;
 
 @Getter
 @Setter
-@AllArgsConstructor
-@ToString
 public class LoginEvent {
+    @Override
+    public String toString() {
+        return "LoginEvent:{" +
+                "username:'" + username +
+                ", time:" + time +
+                '}';
+    }
 
     private String username;
     private Date time;
+
+    public LoginEvent(String username) {
+        this.username = username;
+        time = new Date();
+    }
 }

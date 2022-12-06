@@ -1,4 +1,4 @@
-package com.game.liar.dto.request;
+package com.game.liar.domain.request;
 
 import lombok.*;
 
@@ -12,9 +12,6 @@ import javax.validation.constraints.NotNull;
 public class RoomInfoRequest {
     @NotNull
     private Integer maxPersonCount;
-
     @NotNull
-    private String roomName;
-
-    private String senderId;
+    private String ownerName;
 }
