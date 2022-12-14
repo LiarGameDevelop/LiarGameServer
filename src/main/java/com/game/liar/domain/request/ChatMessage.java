@@ -1,4 +1,4 @@
-package com.game.liar.dto.request;
+package com.game.liar.domain.request;
 
 import lombok.*;
 
@@ -10,12 +10,10 @@ import javax.validation.constraints.NotNull;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
-public class ChatRequest {
-    @NotNull
+@EqualsAndHashCode
+public class ChatMessage {
+    @NotBlank
     private String senderId;
-
-    @NotNull
-    private String roomId;
 
     @NotBlank
     private String message;

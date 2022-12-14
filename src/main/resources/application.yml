@@ -1,0 +1,24 @@
+SERVER_IP: "127.0.0.1"
+#SERVER_IP= "13.125.250.0"
+
+chat:
+  destinations:
+    login: "/subscribe/room.login/"
+    logout: "/subscribe/room.logout/"
+
+category:
+  keywords:
+    food:
+      - "pizza"
+      - "tteokbokki"
+      - "bibimbab"
+      - "chicken"
+    sports:
+      - "soccer"
+      - "basketball"
+      - "baseball"
+      - "volleyball"
+    celebrity:
+      - "suji"
+      - "IU"
+      - "jenny"

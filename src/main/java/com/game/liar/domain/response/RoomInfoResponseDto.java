@@ -1,6 +1,6 @@
-package com.game.liar.dto.response;
+package com.game.liar.domain.response;
 
-import com.game.liar.dto.Room;
+import com.game.liar.domain.Room;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,13 +16,13 @@ public class RoomInfoResponseDto {
     private String roomId;
     private String roomName;
 
-    private Integer personCount;
+    private int personCount;
 
     public RoomInfoResponseDto(Room room){
         maxPersonCount = room.getMaxCount();
         ownerId = room.getOwnerId();
         roomId = room.getRoomId();
-        roomName = room.getRoomName();
+        roomName = room.getOwnerName();
         personCount = room.getMemberList().size();
     }
 }

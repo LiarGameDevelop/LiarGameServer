@@ -1,10 +1,11 @@
 package com.game.liar.controller;
 
-import com.game.liar.dto.request.RoomIdAndSenderIdRequest;
-import com.game.liar.dto.request.RoomIdRequest;
-import com.game.liar.dto.request.RoomInfoRequest;
-import com.game.liar.dto.response.RoomInfoResponseDto;
+import com.game.liar.domain.request.RoomIdAndUserNameRequest;
+import com.game.liar.domain.request.RoomIdRequest;
+import com.game.liar.domain.request.RoomInfoRequest;
+import com.game.liar.domain.response.RoomInfoResponseDto;
 import com.game.liar.exception.MaxCountException;
+import com.game.liar.service.GameService;
 import com.game.liar.service.RoomService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
@@ -18,17 +19,25 @@ import java.util.List;
 @RestController
 @Slf4j
 public class RoomController {
-    public RoomController(RoomService roomService) {
-        this.roomService = roomService;
-    }
 
     private RoomService roomService;
+
+    public RoomController(RoomService roomService, GameController gameController) {
+        this.roomService = roomService;
+        this.gameController = gameController;
+    }
+
+    private GameController gameController;
     //해야할 역할은? 클라가 만들고 싶은 방의 정보를 받아서->방 만들기
 
     @PostMapping("/room")
     public RoomInfoResponseDto create(@Valid @RequestBody RoomInfoRequest request, HttpServletRequest httpRequest) throws MaxCountException {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
-        return roomService.create(request);
+        RoomInfoResponseDto response = roomService.create(request);
+        if (response != null) {
+            gameController.addRoom(response.getRoomId(), response.getOwnerId());
+        }
+        return response;
     }
 
     @GetMapping("/room")
@@ -38,21 +47,26 @@ public class RoomController {
     }
 
     @PostMapping("/room/enter")
-    public RoomInfoResponseDto enterRoom(@Valid @RequestBody RoomIdAndSenderIdRequest request, HttpServletRequest httpRequest) throws MaxCountException {
+    public RoomInfoResponseDto enterRoom(@Valid @RequestBody RoomIdAndUserNameRequest request, HttpServletRequest httpRequest) throws MaxCountException {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
         return roomService.addRoomMember(request);
     }
 
     @PostMapping("/room/leave")
-    public RoomInfoResponseDto leaveRoom(@Valid @RequestBody RoomIdAndSenderIdRequest request, HttpServletRequest httpRequest) {
+    public RoomInfoResponseDto leaveRoom(@Valid @RequestBody RoomIdAndUserNameRequest request, HttpServletRequest httpRequest) {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
         return roomService.leaveRoomMember(request);
     }
 
     @DeleteMapping("/room")
-    public RoomInfoResponseDto remove(@Valid @RequestBody RoomIdAndSenderIdRequest request, HttpServletRequest httpRequest) {
+    public RoomInfoResponseDto remove(@Valid @RequestBody RoomIdAndUserNameRequest request, HttpServletRequest httpRequest) {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
-        return roomService.deleteRoom(request);
+        RoomInfoResponseDto response = roomService.deleteRoom(request);
+        if (response != null) {
+            //알리기
+            //gameController.(request.getRoomId());
+        }
+        return response;
     }
 
     public static String getClientIp(HttpServletRequest request) {

@@ -1,15 +1,19 @@
 package com.game.liar.service;
 
-import com.game.liar.dto.Room;
-import com.game.liar.dto.request.RoomIdAndSenderIdRequest;
-import com.game.liar.dto.request.RoomIdRequest;
-import com.game.liar.dto.request.RoomInfoRequest;
-import com.game.liar.dto.response.RoomInfoResponseDto;
+import com.game.liar.domain.Member;
+import com.game.liar.domain.Room;
+import com.game.liar.domain.request.RoomIdAndUserNameRequest;
+import com.game.liar.domain.request.RoomIdRequest;
+import com.game.liar.domain.request.RoomInfoRequest;
+import com.game.liar.domain.response.RoomInfoResponseDto;
 import com.game.liar.exception.MaxCountException;
 import com.game.liar.exception.NotExistException;
 import com.game.liar.repository.RoomRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -22,21 +26,14 @@ public class RoomService {
     }
 
     public RoomInfoResponseDto create(RoomInfoRequest request) throws MaxCountException, NotExistException {
-        //sender id체크
-        if (request.getSenderId() == null) {
-            log.info("sender info not exist, so make new info");
-            throw new NotExistException("Sender info is required");
-        }
-
         if (request.getMaxPersonCount() == null) {
             log.info("the number of room max count does not exist");
             request.setMaxPersonCount(MAX_COUNT_NUMBER);
         }
 
-        if (request.getRoomName() == null) {
+        if (request.getOwnerName() == null) {
             throw new NotExistException("Room name is required");
         }
-        //room id 체크
         Room room = repository.create(request);
         return new RoomInfoResponseDto(room);
     }
@@ -50,7 +47,12 @@ public class RoomService {
         }
     }
 
-    public RoomInfoResponseDto deleteRoom(RoomIdAndSenderIdRequest request) {
+    public List<String> getUsers(RoomIdRequest request) {
+        List<Member> users = repository.getUsersInRoom(request);
+        return users.stream().map(Member::getUsername).collect(Collectors.toList());
+    }
+
+    public RoomInfoResponseDto deleteRoom(RoomIdAndUserNameRequest request) {
         try {
             Room room = repository.deleteRoom(request);
             return new RoomInfoResponseDto(room);
@@ -59,12 +61,12 @@ public class RoomService {
         }
     }
 
-    public RoomInfoResponseDto addRoomMember(RoomIdAndSenderIdRequest request) throws MaxCountException {
+    public RoomInfoResponseDto addRoomMember(RoomIdAndUserNameRequest request) throws MaxCountException {
         Room room = repository.addRoomMember(request);
         return new RoomInfoResponseDto(room);
     }
 
-    public RoomInfoResponseDto leaveRoomMember(RoomIdAndSenderIdRequest request){
+    public RoomInfoResponseDto leaveRoomMember(RoomIdAndUserNameRequest request){
         Room room = repository.leaveRoomMember(request);
         return new RoomInfoResponseDto(room);
     }

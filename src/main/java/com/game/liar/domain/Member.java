@@ -1,4 +1,4 @@
-package com.game.liar.dto;
+package com.game.liar.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -6,5 +6,6 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class Member {
-    private String senderId;
+    private String username;
+    private String userId;
 }
