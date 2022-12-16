@@ -1,8 +1,8 @@
 package com.game.liar.service;
 
-import com.game.liar.domain.Member;
+import com.game.liar.domain.User;
 import com.game.liar.domain.Room;
-import com.game.liar.domain.request.RoomIdAndUserNameRequest;
+import com.game.liar.domain.request.RoomIdAndUserIdRequest;
 import com.game.liar.domain.request.RoomIdRequest;
 import com.game.liar.domain.request.RoomInfoRequest;
 import com.game.liar.domain.response.RoomInfoResponseDto;
@@ -48,11 +48,11 @@ public class RoomService {
     }
 
     public List<String> getUsers(RoomIdRequest request) {
-        List<Member> users = repository.getUsersInRoom(request);
-        return users.stream().map(Member::getUsername).collect(Collectors.toList());
+        List<User> users = repository.getUsersInRoom(request);
+        return users.stream().map(User::getUserId).collect(Collectors.toList());
     }
 
-    public RoomInfoResponseDto deleteRoom(RoomIdAndUserNameRequest request) {
+    public RoomInfoResponseDto deleteRoom(RoomIdAndUserIdRequest request) {
         try {
             Room room = repository.deleteRoom(request);
             return new RoomInfoResponseDto(room);
@@ -61,12 +61,12 @@ public class RoomService {
         }
     }
 
-    public RoomInfoResponseDto addRoomMember(RoomIdAndUserNameRequest request) throws MaxCountException {
+    public RoomInfoResponseDto addRoomMember(RoomIdAndUserIdRequest request) throws MaxCountException {
         Room room = repository.addRoomMember(request);
         return new RoomInfoResponseDto(room);
     }
 
-    public RoomInfoResponseDto leaveRoomMember(RoomIdAndUserNameRequest request){
+    public RoomInfoResponseDto leaveRoomMember(RoomIdAndUserIdRequest request) {
         Room room = repository.leaveRoomMember(request);
         return new RoomInfoResponseDto(room);
     }

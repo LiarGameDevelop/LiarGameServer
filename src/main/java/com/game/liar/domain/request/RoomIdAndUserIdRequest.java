@@ -11,9 +11,9 @@ import javax.validation.constraints.NotBlank;
 @Setter
 @AllArgsConstructor
 @ToString
-public class RoomIdAndUserNameRequest {
+public class RoomIdAndUserIdRequest {
     @NotBlank
     private String roomId;
 
-    private String username;
+    private String userId;
 }
