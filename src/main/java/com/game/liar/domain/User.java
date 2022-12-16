@@ -2,10 +2,13 @@ package com.game.liar.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.Getter;
+import lombok.ToString;
 
-@Data
+@Getter
 @AllArgsConstructor
-public class Member {
+@ToString
+public class User {
     private String username;
     private String userId;
 }

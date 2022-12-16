@@ -11,7 +11,6 @@ import javax.validation.constraints.NotBlank;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder(builderMethodName = "messageContainerBuilder")
-@ToString
 @EqualsAndHashCode
 public class MessageContainer {
     @NotBlank
@@ -25,7 +24,6 @@ public class MessageContainer {
 
     @Getter
     @AllArgsConstructor
-    @ToString
     @NoArgsConstructor
     @EqualsAndHashCode
     public static class Message {
@@ -33,6 +31,13 @@ public class MessageContainer {
         String method;
         @NotBlank
         String body;
+
+        @Override
+        public String toString() {
+            return  "{\"method\":\"" + method +
+                    "\", \"body\":" + body +
+                    "}}";
+        }
     }
 
     public static MessageContainerBuilder builder(MessageContainer.Message message) {
@@ -40,5 +45,14 @@ public class MessageContainer {
             throw new IllegalArgumentException("필수 메세지 누락");
         }
         return messageContainerBuilder().message(message);
+    }
+
+    @Override
+    public String toString() {
+        return "MessageContainer:{" +
+                "\"senderId\":\"" + senderId + '\"' +
+                ", \"message\":" + message +
+                ", \"uuid\":'" + uuid + '\'' +
+                '}';
     }
 }

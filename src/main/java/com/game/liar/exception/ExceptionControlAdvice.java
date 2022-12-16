@@ -8,9 +8,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 @RestControllerAdvice
@@ -29,7 +27,7 @@ public class ExceptionControlAdvice {
     }
 
     @ExceptionHandler
-    public ResponseEntity<ErrorResult> NotAllowedExceptionHandle(NotAllowedActionException e){
+    public ResponseEntity<ErrorResult> NotAllowedExceptionHandle(NotAllowedActionException e) {
         return ResponseEntity.badRequest().body(new ErrorResult("Not Allowed action", e.getMessage()));
     }
 
@@ -45,7 +43,12 @@ public class ExceptionControlAdvice {
     }
 
     @ExceptionHandler
-    public ResponseEntity<ErrorResult> MaxCountExceptionHandle(MaxCountException e){
+    public ResponseEntity<ErrorResult> MaxCountExceptionHandle(MaxCountException e) {
         return ResponseEntity.badRequest().body(new ErrorResult("Requested count is over", e.getMessage()));
+    }
+
+    @ExceptionHandler
+    public ResponseEntity<ErrorResult> StateNotAllowedExceptionHandle(StateNotAllowedExpcetion e) {
+        return ResponseEntity.badRequest().body(new ErrorResult("State is not allowed", e.getMessage()));
     }
 }

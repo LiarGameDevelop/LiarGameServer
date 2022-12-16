@@ -31,6 +31,8 @@ public class Global {
     public static final String SELECT_LIAR = "selectLiar";
     public static final String OPEN_KEYWORD = "openKeyword";
 
+    public static final String REQUEST_TURN_FINISH = "requestTurnFinished";
+
     public static final String IN_PROGRESS = "inProgress";
     public static final String VOTE_LIAR = "voteLiar";
     public static final String REQUEST_LIAR_ANSWER = "requestLiarAnswer";
@@ -41,4 +43,7 @@ public class Global {
     public static final String END_ROUND = "endRound";
     public static final String PUBLISH_RANKINGS = "publishRankings";
     public static final String GET_GATE_STATE = "getGameState";
+
+    //Common
+    public static final String SERVER_ID="SERVER";
 }

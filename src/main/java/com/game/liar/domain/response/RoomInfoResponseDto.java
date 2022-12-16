@@ -1,10 +1,13 @@
 package com.game.liar.domain.response;
 
+import com.game.liar.domain.User;
 import com.game.liar.domain.Room;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.List;
 
 @Getter
 @Setter
@@ -18,11 +21,14 @@ public class RoomInfoResponseDto {
 
     private int personCount;
 
-    public RoomInfoResponseDto(Room room){
+    private List<User> userList;
+
+    public RoomInfoResponseDto(Room room) {
         maxPersonCount = room.getMaxCount();
         ownerId = room.getOwnerId();
         roomId = room.getRoomId();
         roomName = room.getOwnerName();
-        personCount = room.getMemberList().size();
+        personCount = room.getUserList().size();
+        userList = room.getUserList();
     }
 }

@@ -19,10 +19,4 @@ public class GameCategoryProperties {
     public List<String> loadKeywords(String category) {
         return keywords.get(category);
     }
-
-    @Setter
-    @Getter
-    public static class GameKeyword {
-        String keyword;
-    }
 }

@@ -1,11 +1,10 @@
 package com.game.liar.controller;
 
-import com.game.liar.domain.request.RoomIdAndUserNameRequest;
+import com.game.liar.domain.request.RoomIdAndUserIdRequest;
 import com.game.liar.domain.request.RoomIdRequest;
 import com.game.liar.domain.request.RoomInfoRequest;
 import com.game.liar.domain.response.RoomInfoResponseDto;
 import com.game.liar.exception.MaxCountException;
-import com.game.liar.service.GameService;
 import com.game.liar.service.RoomService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.util.StringUtils;
@@ -36,6 +35,7 @@ public class RoomController {
         RoomInfoResponseDto response = roomService.create(request);
         if (response != null) {
             gameController.addRoom(response.getRoomId(), response.getOwnerId());
+            gameController.addMember(response.getRoomId(), response.getUserList().get(response.getUserList().size() - 1));
         }
         return response;
     }
@@ -47,19 +47,25 @@ public class RoomController {
     }
 
     @PostMapping("/room/enter")
-    public RoomInfoResponseDto enterRoom(@Valid @RequestBody RoomIdAndUserNameRequest request, HttpServletRequest httpRequest) throws MaxCountException {
+    public RoomInfoResponseDto enterRoom(@Valid @RequestBody RoomIdAndUserIdRequest request, HttpServletRequest httpRequest) throws MaxCountException {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
-        return roomService.addRoomMember(request);
+        RoomInfoResponseDto room = roomService.addRoomMember(request);
+        gameController.addMember(room.getRoomId(), room.getUserList().get(room.getUserList().size() - 1));
+        return room;
     }
 
     @PostMapping("/room/leave")
-    public RoomInfoResponseDto leaveRoom(@Valid @RequestBody RoomIdAndUserNameRequest request, HttpServletRequest httpRequest) {
+    public RoomInfoResponseDto leaveRoom(@Valid @RequestBody RoomIdAndUserIdRequest request, HttpServletRequest httpRequest) {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
-        return roomService.leaveRoomMember(request);
+        //User willDeleteUser = roomService.getUsers(new RoomIdRequest(request.getRoomId()))
+        RoomInfoResponseDto room = roomService.leaveRoomMember(request);
+        //TODO : delete left member
+        //gameController.deleteMember(room.getRoomId(), room.getUserList().get(room.getUserList().size() - 1));
+        return room;
     }
 
     @DeleteMapping("/room")
-    public RoomInfoResponseDto remove(@Valid @RequestBody RoomIdAndUserNameRequest request, HttpServletRequest httpRequest) {
+    public RoomInfoResponseDto removeRoom(@Valid @RequestBody RoomIdAndUserIdRequest request, HttpServletRequest httpRequest) {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
         RoomInfoResponseDto response = roomService.deleteRoom(request);
         if (response != null) {
@@ -70,6 +76,9 @@ public class RoomController {
     }
 
     public static String getClientIp(HttpServletRequest request) {
+        if(request==null){
+            return "127.0.0.1";
+        }
         String clientIp = null;
         boolean isIpInHeader = false;
 
@@ -91,10 +100,6 @@ public class RoomController {
                 isIpInHeader = true;
                 break;
             }
-        }
-
-        if (!isIpInHeader) {
-            clientIp = request.getRemoteAddr();
         }
 
         return clientIp;

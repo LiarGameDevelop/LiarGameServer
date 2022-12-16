@@ -1,8 +1,8 @@
 package com.game.liar.repository;
 
-import com.game.liar.domain.Member;
+import com.game.liar.domain.User;
 import com.game.liar.domain.Room;
-import com.game.liar.domain.request.RoomIdAndUserNameRequest;
+import com.game.liar.domain.request.RoomIdAndUserIdRequest;
 import com.game.liar.domain.request.RoomIdRequest;
 import com.game.liar.domain.request.RoomInfoRequest;
 import com.game.liar.exception.AlreadyExistException;
@@ -40,9 +40,9 @@ public class RoomRepository {
         room.setOwnerId(ownerId);
         room.setMaxCount(request.getMaxPersonCount());
 
-        room.addMember(new Member(request.getOwnerName(),ownerId));
+        room.addMember(new User(request.getOwnerName(), ownerId));
         users.add(ownerId);
-        log.info("Created Room : {}",room);
+        log.info("Created Room : {}", room);
         return room;
     }
 
@@ -78,39 +78,39 @@ public class RoomRepository {
         return roomMap.getOrDefault(request.getRoomId(), null);
     }
 
-    public List<Member> getUsersInRoom(RoomIdRequest request) {
+    public List<User> getUsersInRoom(RoomIdRequest request) {
         Room room = roomMap.get(request.getRoomId());
         if (room == null) {
             throw new NotExistException("No member in the room");
         }
-        return room.getMemberList();
+        return room.getUserList();
     }
 
     public Room getRoom(String roomId) {
         return roomMap.getOrDefault(roomId, null);
     }
 
-    public Room addRoomMember(RoomIdAndUserNameRequest request) throws MaxCountException {
+    public Room addRoomMember(RoomIdAndUserIdRequest request) throws MaxCountException {
         Room room = getRoom(request.getRoomId());
-        String userId=makeUniqueUserId();
+        String userId = makeUniqueUserId();
         if (room == null)
             throw new NotExistException("Requested Room does not exist");
-        room.addMember(new Member(request.getUsername(),userId));
+        room.addMember(new User(request.getUserId(), userId));
         return room;
     }
 
-    public Room leaveRoomMember(RoomIdAndUserNameRequest request) {
+    public Room leaveRoomMember(RoomIdAndUserIdRequest request) {
         Room room = getRoom(request.getRoomId());
         if (room == null)
             throw new NotExistException("Requested Room does not exist");
-        room.leaveMember(request.getUsername());
+        room.leaveMember(request.getUserId());
         return room;
     }
 
-    public Room deleteRoom(RoomIdAndUserNameRequest request) {
+    public Room deleteRoom(RoomIdAndUserIdRequest request) {
         if (roomMap.containsKey(request.getRoomId())) {
             String roomOwnerId = roomMap.get(request.getRoomId()).getOwnerId();
-            if (request.getUsername().equals(roomOwnerId)) {
+            if (request.getUserId().equals(roomOwnerId)) {
                 return roomMap.remove(request.getRoomId());
             }
             throw new NotAllowedActionException("Room owner can delete room");

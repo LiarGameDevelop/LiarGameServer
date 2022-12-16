@@ -1,7 +1,7 @@
 package com.game.liar.repository;
 
 import com.game.liar.domain.Room;
-import com.game.liar.domain.request.RoomIdAndUserNameRequest;
+import com.game.liar.domain.request.RoomIdAndUserIdRequest;
 import com.game.liar.domain.request.RoomIdRequest;
 import com.game.liar.domain.request.RoomInfoRequest;
 import com.game.liar.exception.NotAllowedActionException;
@@ -29,7 +29,7 @@ class RoomRepositoryTest {
         Room result = roomRepository.create(info);
         //Then
         assertThat(roomRepository.getRoomCount()).isEqualTo(1);
-        assertThat(result.getMemberList().size()).isEqualTo(1);
+        assertThat(result.getUserList().size()).isEqualTo(1);
     }
 
     @Test
@@ -58,7 +58,7 @@ class RoomRepositoryTest {
         info.setMaxPersonCount(5);
         Room room = roomRepository.create(info);
 
-        RoomIdAndUserNameRequest idRequest = new RoomIdAndUserNameRequest(room.getRoomId(),room.getOwnerId());
+        RoomIdAndUserIdRequest idRequest = new RoomIdAndUserIdRequest(room.getRoomId(),room.getOwnerId());
 
         //When
         roomRepository.deleteRoom(idRequest);
@@ -75,7 +75,7 @@ class RoomRepositoryTest {
         info.setMaxPersonCount(5);
         Room room = roomRepository.create(info);
 
-        RoomIdAndUserNameRequest idRequest = new RoomIdAndUserNameRequest("1234",room.getOwnerId());
+        RoomIdAndUserIdRequest idRequest = new RoomIdAndUserIdRequest("1234",room.getOwnerId());
 
         //When
         assertThrows(NullPointerException.class, ()->{roomRepository.deleteRoom(idRequest);});
@@ -91,7 +91,7 @@ class RoomRepositoryTest {
         info.setMaxPersonCount(5);
         Room room = roomRepository.create(info);
 
-        RoomIdAndUserNameRequest idRequest = new RoomIdAndUserNameRequest(room.getRoomId(),"1234");
+        RoomIdAndUserIdRequest idRequest = new RoomIdAndUserIdRequest(room.getRoomId(),"1234");
 
         //When
         assertThrows(NotAllowedActionException.class, ()->{roomRepository.deleteRoom(idRequest);});
@@ -107,7 +107,7 @@ class RoomRepositoryTest {
         info.setMaxPersonCount(5);
         Room room = roomRepository.create(info);
 
-        RoomIdAndUserNameRequest idRequest = new RoomIdAndUserNameRequest(room.getRoomId(),"1234");
+        RoomIdAndUserIdRequest idRequest = new RoomIdAndUserIdRequest(room.getRoomId(),"1234");
 
         //When
         Room result = roomRepository.addRoomMember(idRequest);

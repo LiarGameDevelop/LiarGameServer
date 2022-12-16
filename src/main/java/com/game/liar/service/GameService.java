@@ -3,10 +3,13 @@ package com.game.liar.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.game.liar.domain.GameState;
+import com.game.liar.domain.Global;
+import com.game.liar.domain.User;
 import com.game.liar.domain.request.MessageContainer;
 import com.game.liar.domain.request.RoomIdRequest;
 import com.game.liar.exception.NotAllowedActionException;
 import com.game.liar.exception.NotExistException;
+import com.game.liar.exception.StateNotAllowedExpcetion;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -53,10 +56,10 @@ public class GameService {
             throw new NotAllowedActionException("You are not owner of this room");
         }
         if (gameInfo.getState() != GameState.BEFORE_START)
-            throw new NotAllowedActionException("Game is not initialized");
+            throw new StateNotAllowedExpcetion("Game is not initialized");
 
         try {
-            log.info("request.getMessage().getBody(): {}",request.getMessage().getBody());
+            log.info("request.getMessage().getBody(): {}", request.getMessage().getBody());
             GameInfo.GameSettings settings = objectMapper.readValue(request.getMessage().getBody(), GameInfo.GameSettings.class);
             if (settings.getRound() == null || settings.getTurn() == null || settings.getCategory() == null) {
                 throw new NullPointerException("Required parameters does exist");
@@ -70,11 +73,11 @@ public class GameService {
             if (settings.getCategory().isEmpty()) {
                 throw new NotAllowedActionException("Category should contain more than 1");
             }
-            log.info("request OK, settings : {}",settings);
+            log.info("request OK, settings : {}", settings);
             gameInfo.setGameSettings(settings);
             gameInfo.nextState();
             gameInfo.initialize();
-            log.info("Result gameinfo : {}",gameInfo);
+            log.info("Result gameinfo : {}", gameInfo);
             return gameInfo;
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
@@ -93,7 +96,13 @@ public class GameService {
         return gameInfo;
     }
 
-    //@Deprecated
+    public GameInfo getGame(@NotNull String roomId) {
+        if (gameManagerMap.containsKey(roomId)) {
+            return gameManagerMap.get(roomId);
+        }
+        throw new NotExistException(String.format("There is no room. room id : %s", roomId));
+    }
+
     public void removeGame(@NotNull String roomName) {
         if (!gameManagerMap.containsKey(roomName)) {
             log.error("The game manager does not exists");
@@ -114,7 +123,7 @@ public class GameService {
             throw new NotAllowedActionException("You are not owner of this room");
         }
         if (gameInfo.getState() != GameState.BEFORE_ROUND)
-            throw new NotAllowedActionException("Game does not start");
+            throw new StateNotAllowedExpcetion("Game does not start");
         if (gameInfo.getGameSettings().getRound() <= gameInfo.getRound() + 1) {
             throw new NotAllowedActionException("Round is Over. ");
         }
@@ -127,19 +136,63 @@ public class GameService {
     public GameInfo selectLiar(MessageContainer request, String roomId) {
         String senderID = request.getSenderId();
         GameInfo gameInfo = gameManagerMap.get(roomId);
-        List<String> usersInRoom = getUsersInRoom(roomId);
-        if (!usersInRoom.contains(senderID))
-            throw new NotExistException("Current user does not exist in the room");
+        if (!gameInfo.getOwnerId().equals(senderID))
+            throw new NotAllowedActionException("You are not owner of this room");
         if (gameInfo.getState() != GameState.SELECT_LIAR)
-            throw new NotAllowedActionException("Current State is not SELECT_LIAR");
+            throw new StateNotAllowedExpcetion("Current State is not SELECT_LIAR");
 
-        String liarId = roundService.selectLiar(usersInRoom, roomId);
+        String liarId = roundService.selectLiar(getUserIDsInRoom(roomId), roomId);
         gameInfo.selectLiar(liarId);
+        gameInfo.nextState();
 
         return gameInfo;
     }
 
-    public List<String> getUsersInRoom(String roomId) {
+    public GameInfo openKeyword(MessageContainer request, String roomId) {
+        String senderID = request.getSenderId();
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+        if (!gameInfo.getOwnerId().equals(senderID))
+            throw new NotAllowedActionException("You are not owner of this room");
+        if (gameInfo.getState() != GameState.OPEN_KEYWORD)
+            throw new StateNotAllowedExpcetion(String.format("Current State is not OPEN_KEYWORD. state:%s", gameInfo.getState()));
+        roundService.openCategory(gameInfo);
+        roundService.openKeyword(gameInfo);
+        roundService.openTurnOrder(gameInfo);
+
+        gameInfo.nextState();
+        return gameInfo;
+    }
+
+    public GameInfo updateTurn(String senderId, String roomId) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+        if (gameInfo.getState() != GameState.IN_PROGRESS)
+            throw new StateNotAllowedExpcetion(String.format("Current State is not IN_PROGRESS. state:%s", gameInfo.getState()));
+        if (gameInfo.getTurn() >= gameInfo.getGameSettings().getTurn() * gameInfo.getTurnOrder().size()) {
+            //log.info("turn cannot be larger than total turn. turn:{}", gameInfo.getTurn());
+            throw new NotAllowedActionException(String.format("turn cannot be larger than total turn. turn:%d", gameInfo.getTurn()));
+        }
+        if (gameInfo.getTurn() < 0) {
+            if (!senderId.equals(Global.SERVER_ID))
+                throw new RuntimeException("It's not your turn");
+        } else {
+            if (!gameInfo.getCurrentTurnId().equals(senderId))
+                throw new RuntimeException("It's not your turn");
+        }
+        gameInfo.nextTurn();
+        return gameInfo;
+    }
+
+    public GameInfo notifyRoundEnd(String roomId) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+        if (gameInfo.getState() != GameState.IN_PROGRESS)
+            throw new StateNotAllowedExpcetion(String.format("Current State is not IN_PROGRESS. state:%s", gameInfo.getState()));
+        gameInfo.nextRound();
+        gameInfo.resetTurn();
+        gameInfo.nextState();
+        return gameInfo;
+    }
+
+    public List<String> getUserIDsInRoom(String roomId) {
         return roomService.getUsers(new RoomIdRequest(roomId));
     }
 
@@ -149,8 +202,23 @@ public class GameService {
         gameInfo.nextState();
     }
 
-    public List<String> getTurnOrder(String roomId){
-        GameInfo gameInfo=gameManagerMap.get(roomId);
-        return roundService.makeTurnOrder(getUsersInRoom(roomId));
+    public void addMember(String roomId, User user) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+        if (gameInfo != null) {
+            log.info("room id : {} added user: {}", roomId, user);
+            gameInfo.addUser(user);
+        } else {
+            log.error("room id does not exist");
+        }
+    }
+
+    public void deleteMember(String roomId, User user) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+        if (gameInfo != null) {
+            log.info("room id : {} added user: {}", roomId, user);
+            gameInfo.deleteUser(user);
+        } else {
+            log.error("room id does not exist");
+        }
     }
 }
