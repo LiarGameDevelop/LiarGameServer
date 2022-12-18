@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Slf4j
 @ToString
@@ -54,6 +55,12 @@ public class GameInfo {
     @Setter
     private List<String> turnOrder;
 
+    @Getter
+    @Setter
+    private Map<String, String> voteResult = new ConcurrentHashMap<>();
+    @Getter
+    private Integer voteCount = 0;
+
     public String getCurrentTurnId() {
         if (turn >= turnOrder.size())
             return turnOrder.get(turn % turnOrder.size());
@@ -91,6 +98,10 @@ public class GameInfo {
         userList.remove(user);
     }
 
+    public boolean isUserInTheRoom(String userId){
+        return userList.stream().anyMatch(user->user.getUserId().equals(userId));
+    }
+
     public void cancelTimer() {
         log.info("cancel timer");
         turnTimer.cancel();
@@ -102,16 +113,40 @@ public class GameInfo {
     }
 
     public boolean isLastTurn() {
-        if (turn == turnOrder.size() * gameSettings.turn)
-            return true;
-        return false;
+        return turn == turnOrder.size() * gameSettings.turn;
+    }
+
+    public void addVoteResult(String from, String liarDesignatedId) {
+        voteResult.put(from, liarDesignatedId);
+        voteCount++;
+    }
+
+    public boolean checkVoteCompleted(String from) {
+        return voteResult.containsKey(from);
+    }
+
+    public void resetVoteResult() {
+        voteResult.clear();
+        voteCount = 0;
+    }
+
+    public synchronized boolean voteFinished() {
+        return voteCount == turnOrder.size();
+    }
+
+    public List<Map.Entry<String, Long>> getMostVoted() {
+        Map<String, Long> voteCountByDesignatedId =
+                voteResult.values().stream()
+                        .collect(Collectors.groupingBy(liar -> liar, Collectors.counting()));
+        Map.Entry<String, Long> mostVoted = voteCountByDesignatedId.entrySet().stream().max(Map.Entry.comparingByValue()).get();
+        return voteCountByDesignatedId.entrySet().stream().filter(entry -> entry.getValue() == mostVoted.getValue()).collect(Collectors.toList());
     }
 
     @Getter
     @Setter
     @NoArgsConstructor
     @AllArgsConstructor
-    @Builder(builderMethodName = "gameSettingsBuilder")
+    @Builder
     public static class GameSettings {
         private Integer round;
         private Integer turn;

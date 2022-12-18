@@ -15,6 +15,7 @@ public class Global {
     public static final String NOTIFY_TURN = "notifyTurn";
     public static final String NOTIFY_ROUND_END = "notifyRoundEnd";
     public static final String NOTIFY_VOTE_RESULT = "notifyVoteResult";
+
     public static final String NOTIFY_NEW_VOTE_NEEDED = "notifyNewVoteNeeded";
     public static final String NOTIFY_VOTE_TIMEOUT = "notifyVoteTimeout";
     public static final String NOTIFY_LIAR_OPEN_NEEDED = "notifyLiarOpenNeeded";

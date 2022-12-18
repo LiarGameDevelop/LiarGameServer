@@ -2,7 +2,6 @@ package com.game.liar.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.game.liar.domain.GameState;
 import com.game.liar.domain.Global;
 import com.game.liar.domain.User;
 import com.game.liar.domain.request.MessageContainer;
@@ -82,7 +81,6 @@ public class GameController {
     ProcessGame getGameState = (request, roomId) -> {
         GameInfo gameInfo = gameService.getGameState(roomId);
         try {
-            GameState state = gameInfo.getState();
             sendHostMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_GAME_STATE, objectMapper.writeValueAsString(new GameStateResponse(gameInfo.getState()))), roomId);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
@@ -110,7 +108,7 @@ public class GameController {
     ProcessGame selectLiar = (request, roomId) -> {
         GameInfo gameInfo = gameService.selectLiar(request, roomId);
         String body = "";
-        for (String userId : gameService.getUserIDsInRoom(roomId)) {
+        for (String userId : gameService.getUserIdListInRoom(roomId)) {
             boolean isLiar = userId.equals(gameInfo.getLiarId());
             try {
                 body = objectMapper.writeValueAsString(new LiarResponse(isLiar, gameInfo.getState()));
@@ -125,7 +123,7 @@ public class GameController {
     ProcessGame openKeyword = (request, roomId) -> {
         GameInfo gameInfo = gameService.openKeyword(request, roomId);
         String body = "";
-        for (String userId : gameService.getUserIDsInRoom(roomId)) {
+        for (String userId : gameService.getUserIdListInRoom(roomId)) {
             boolean isLiar = userId.equals(gameInfo.getLiarId());
             OpenedGameInfo response = OpenedGameInfo.builder()
                     .category(gameInfo.getCurrentRoundCategory())
@@ -145,6 +143,35 @@ public class GameController {
         __requestTurnFinished(new MessageContainer(SERVER_ID, null, UUID.randomUUID().toString()), roomId);
     };
 
+    ProcessGame voteLiar = (request, roomId) -> {
+        GameInfo gameInfo = gameService.voteLiar(request, roomId);
+        if (gameInfo.voteFinished()) {
+            String body;
+            try {
+                VoteResult voteResult = gameService.getMostVoted(roomId);
+                body = objectMapper.writeValueAsString(voteResult);
+                log.info("[API]voteLiar response : {}", body);
+                String uuid = UUID.randomUUID().toString();
+                sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_VOTE_RESULT, body), roomId);
+
+                if (voteResult.getMostVoted().size() == 1) {
+                    gameInfo.nextState();
+                    uuid = UUID.randomUUID().toString();
+                    body = objectMapper.writeValueAsString(new GameStateResponse(gameInfo.getState()));
+                    sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_LIAR_OPENED, body), roomId);
+                } else {
+                    uuid = UUID.randomUUID().toString();
+                    body = objectMapper.writeValueAsString(new GameStateResponse(gameInfo.getState()));
+                    gameInfo.resetVoteResult();
+
+                    sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_NEW_VOTE_NEEDED, body), roomId);
+                }
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    };
+
     ProcessGame requestTurnFinished = this::__requestTurnFinished;
 
     private void __requestTurnFinished(MessageContainer request, String roomId) {
@@ -157,8 +184,7 @@ public class GameController {
             if (gameInfo.isLastTurn()) {
                 __notifyRoundEnd(new MessageContainer(SERVER_ID, null, UUID.randomUUID().toString()), roomId);
                 return;
-            }
-            else {
+            } else {
                 String body = objectMapper.writeValueAsString(new TurnResponse(clientId, gameInfo.getState()));
                 log.info("[API]requestTurnFinished response : {}", body);
                 sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_TURN, body), roomId);
@@ -209,8 +235,7 @@ public class GameController {
             put(Global.SELECT_LIAR, selectLiar);
             put(Global.OPEN_KEYWORD, openKeyword);
             put(Global.REQUEST_TURN_FINISH, requestTurnFinished);
-            put(Global.IN_PROGRESS, startGame);
-            put(Global.VOTE_LIAR, startGame);
+            put(Global.VOTE_LIAR, voteLiar);
             put(Global.OPEN_LIAR, startGame);
             put(Global.REQUEST_LIAR_ANSWER, startGame);
             put(Global.CHECK_LIAR_ANSWER, startGame);

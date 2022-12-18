@@ -6,6 +6,7 @@ import com.game.liar.domain.GameState;
 import com.game.liar.domain.Global;
 import com.game.liar.domain.Room;
 import com.game.liar.domain.User;
+import com.game.liar.domain.request.LiarDesignateRequest;
 import com.game.liar.domain.request.MessageContainer;
 import com.game.liar.domain.request.RoomIdAndUserIdRequest;
 import com.game.liar.domain.request.RoomInfoRequest;
@@ -19,10 +20,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -69,7 +67,7 @@ class GameServiceTest {
 
 
         //When
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food"))
@@ -102,7 +100,7 @@ class GameServiceTest {
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
 
         //When
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(8)
                 .turn(2)
                 .category(Arrays.asList("food"))
@@ -124,7 +122,7 @@ class GameServiceTest {
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
 
         //When
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(3)
                 .turn(5)
                 .category(Arrays.asList("food"))
@@ -146,7 +144,7 @@ class GameServiceTest {
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
 
         //When
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .turn(5)
                 .category(Arrays.asList("food", "sports"))
                 .build());
@@ -167,7 +165,7 @@ class GameServiceTest {
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
 
         //When
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food"))
@@ -188,7 +186,7 @@ class GameServiceTest {
     public void 라운드시작() throws Exception {
         //Given
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food"))
@@ -216,7 +214,7 @@ class GameServiceTest {
     public void 라운드초과Error() throws Exception {
         //Given
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food"))
@@ -257,7 +255,7 @@ class GameServiceTest {
         GameInfo gameInfo = gameService.getGame(roomId);
         String guestId = 방인원추가(roomId, "tester2");
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food"))
@@ -295,7 +293,7 @@ class GameServiceTest {
         GameInfo gameInfo = gameService.getGame(roomId);
         String guestId = 방인원추가(roomId, "tester2");
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food"))
@@ -333,7 +331,7 @@ class GameServiceTest {
         방인원추가(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food"))
@@ -372,7 +370,7 @@ class GameServiceTest {
         String guestId = 방인원추가(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
@@ -424,7 +422,7 @@ class GameServiceTest {
         String guestId = 방인원추가(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
@@ -471,7 +469,7 @@ class GameServiceTest {
         String guestId = 방인원추가(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
@@ -508,7 +506,7 @@ class GameServiceTest {
         String guestId = 방인원추가(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
@@ -554,7 +552,7 @@ class GameServiceTest {
         String guestId = 방인원추가(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.gameSettingsBuilder()
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
@@ -594,5 +592,97 @@ class GameServiceTest {
         assertThrows(NotAllowedActionException.class, () -> {
             gameService.updateTurn(turnOrder.get(0), roomId);
         });
+    }
+
+    @Test
+    public void 라이어투표() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: OPEN_KEYWORD
+        gameService.nextGameState(roomId); //after: IN_PROGRESS
+
+        //when
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+
+        //Then
+        assertThat(gameInfo.getVoteCount()).isEqualTo(2);
+        assertThat(gameInfo.getMostVoted()).isEqualTo(Arrays.asList(new AbstractMap.SimpleEntry<>(guestId, 2L)));
+    }
+
+    @Test
+    public void 라이어투표_동표() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: OPEN_KEYWORD
+        gameService.nextGameState(roomId); //after: IN_PROGRESS
+
+        //when
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(roomOwnerId))))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+
+        //Then
+        assertThat(gameInfo.getVoteCount()).isEqualTo(2);
+        assertThat(gameInfo.getMostVoted()).containsAll(Arrays.asList(new AbstractMap.SimpleEntry<>(guestId, 1L), new AbstractMap.SimpleEntry<>(roomOwnerId, 1L)));
     }
 }
