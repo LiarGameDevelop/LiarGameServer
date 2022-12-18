@@ -3,6 +3,7 @@ package com.game.liar.event;
 import com.game.liar.config.ChatProperties;
 import com.game.liar.repository.ParticipantRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -22,6 +23,7 @@ public class PresenceEventListener {
     private String loginDestination;
 
     private String logoutDestination;
+    @Autowired
     private ChatProperties chatProperties;
 
     public PresenceEventListener(SimpMessagingTemplate messagingTemplate, ParticipantRepository participantRepository) {
@@ -32,13 +34,12 @@ public class PresenceEventListener {
     @EventListener
     private void handleSessionConnected(SessionConnectEvent event) {
         SimpMessageHeaderAccessor headers = SimpMessageHeaderAccessor.wrap(event.getMessage());
-        //String username = Objects.requireNonNull(headers.getUser()).getName();
 
         LoginEvent loginEvent = new LoginEvent(headers.getSessionId());
-        //loginDestination = chatProperties.getDestinations().getLogin();
-        //logoutDestination = chatProperties.getDestinations().getLogout();
+        loginDestination = chatProperties.getDestinations().getLogin();
+        logoutDestination = chatProperties.getDestinations().getLogout();
         log.info("STOMP client connected. login : {} , logout: {}", loginDestination, logoutDestination);
-        //messagingTemplate.convertAndSend(loginDestination, loginEvent);
+        messagingTemplate.convertAndSend(loginDestination, loginEvent);
         participantRepository.add(headers.getSessionId(), loginEvent);
     }
 
