@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.game.liar.config.GameCategoryProperties;
 import com.game.liar.domain.GameState;
 import com.game.liar.domain.Global;
+import com.game.liar.domain.request.KeywordRequest;
 import com.game.liar.domain.request.MessageContainer;
 import com.game.liar.domain.request.RoomIdAndUserIdRequest;
 import com.game.liar.domain.request.RoomInfoRequest;
@@ -354,7 +355,7 @@ class GameControllerTest {
     }
 
     @Test
-    public void 턴알림_TimeOut시간을넘기면턴이넘어간다_Error() throws Exception {
+    public void 턴알림_TimeOut시간을넘기면턴이넘어간다() throws Exception {
         //Given
         __카테고리알림();
         System.out.println("턴알림=================================================================================================");
@@ -482,6 +483,10 @@ class GameControllerTest {
         assertThat(message1).isEqualTo(message2);
         assertThat(message1.getSenderId()).isEqualTo(SERVER_ID);
         assertThat(message1.getMessage()).isEqualTo(expectMessage.getMessage());
+
+        handler1=null;
+        handler2=null;
+        System.gc();
     }
 
     @Test
@@ -548,6 +553,187 @@ class GameControllerTest {
         assertThat(message1).isEqualTo(message2);
         assertThat(message1.getSenderId()).isEqualTo(SERVER_ID);
         assertThat(message1.getMessage()).isEqualTo(expectMessage.getMessage());
+    }
+    
+    @Test
+    public void 라이어공개요청하면_라이어를모두에게알리고_라이어에게정답요청을한다() throws Exception{
+        __라이어공개요청();
+    }
+
+    private void __라이어공개요청() throws Exception {
+        //Given
+        __모두가_투표를하면_투표결과를알려준다();
+        System.out.println("라이어공개요청==================================================================");
+
+        //When
+        TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+        TestSingleStompHandler<MessageContainer> handler2 = new TestSingleStompHandler<>(MessageContainer.class);
+        TestSingleStompHandler<MessageContainer> handler3 = new TestSingleStompHandler<>(MessageContainer.class);
+        TestSingleStompHandler<MessageContainer> handler4 = new TestSingleStompHandler<>(MessageContainer.class);
+        stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
+        stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler3);
+        sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler2);
+        sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/private/%s", sessionInfoList.get(0).guestId), handler4);
+
+        MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
+                .uuid(UUID.randomUUID().toString())
+                .senderId(ownerId)
+                .message(new MessageContainer.Message(OPEN_LIAR, "{}"))
+                .build();
+        stompSession.send(String.format("/publish/system/private/%s", roomId), sendMessage);
+
+        MessageContainer message1 = handler1.getCompletableFuture().get(5, SECONDS);
+        MessageContainer message2 = handler2.getCompletableFuture().get(5, SECONDS);
+
+        String guestId = sessionInfoList.get(0).guestId;
+        OpenLiarResponse expectResultLiarIsRoomOwner= OpenLiarResponse.builder()
+                .liar(ownerId)
+                .matchLiar(false)
+                .state(GameState.LIAR_ANSWER)
+                .build();
+        MessageContainer expectMessageRoomOwner = Util.getExpectedMessageContainer(NOTIFY_VOTE_RESULT, expectResultLiarIsRoomOwner);
+        OpenLiarResponse expectResultLiarIsGuest = OpenLiarResponse.builder()
+                .liar(guestId)
+                .matchLiar(true)
+                .state(GameState.LIAR_ANSWER)
+                .build();
+        MessageContainer expectMessageGuest = Util.getExpectedMessageContainer(NOTIFY_VOTE_RESULT, expectResultLiarIsGuest);
+
+        //Then
+        assertThat(message1).isEqualTo(message2);
+        assertThat(expectMessageRoomOwner.getMessage()).satisfiesAnyOf(
+                param -> assertThat(message1.getMessage().getBody()).isEqualTo(expectMessageRoomOwner.getMessage().getBody()),
+                param -> assertThat(message1.getMessage().getBody()).isEqualTo(expectMessageGuest.getMessage().getBody())
+        );
+        String liarId = gameService.getGame(roomId).getLiarId();
+        if(liarId.equals(ownerId)){
+            MessageContainer message3 = handler3.getCompletableFuture().get(5, SECONDS);
+            assertThat(message3.getMessage().getMethod()).isEqualTo(NOTIFY_LIAR_ANSWER_NEEDED);
+        }
+        else{
+            MessageContainer message4 = handler4.getCompletableFuture().get(5, SECONDS);
+            assertThat(message4.getMessage().getMethod()).isEqualTo(NOTIFY_LIAR_ANSWER_NEEDED);
+        }
+    }
+    
+    @Test
+    public void 라이어정답제출했을때_맞춤() throws Exception{
+        __라이어정답제출();
+    }
+
+    private void __라이어정답제출() throws Exception {
+        //Given
+        __라이어공개요청();
+        //When
+        String liarId = gameService.getGame(roomId).getLiarId();
+        TestSingleStompHandler<MessageContainer> handler1;
+        String expectKeyword= gameService.getGame(roomId).getCurrentRoundKeyword();
+        String body = objectMapper.writeValueAsString(new KeywordRequest(expectKeyword));
+        if(liarId.equals(ownerId)){
+            handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+            stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
+            MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
+                    .uuid(UUID.randomUUID().toString())
+                    .senderId(ownerId)
+                    .message(new MessageContainer.Message(CHECK_KEYWORD_CORRECT, body))
+                    .build();
+            stompSession.send(String.format("/publish/system/private/%s", roomId), sendMessage);
+        }
+        else{
+            handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+            sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
+            MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
+                    .uuid(UUID.randomUUID().toString())
+                    .senderId(sessionInfoList.get(0).guestId)
+                    .message(new MessageContainer.Message(CHECK_KEYWORD_CORRECT, body))
+                    .build();
+            sessionInfoList.get(0).session.send(String.format("/publish/system/private/%s", roomId), sendMessage);
+        }
+
+        MessageContainer messageFromServer = handler1.getCompletableFuture().get(5, SECONDS);
+        LiarAnswerResponse expectResultLiarIsRoomOwner= LiarAnswerResponse.builder()
+                .answer(true)
+                .state(GameState.PUBLISH_SCORE)
+                .build();
+        MessageContainer expectMessageRoomOwner = Util.getExpectedMessageContainer(NOTIFY_LIAR_ANSWER_CORRECT, expectResultLiarIsRoomOwner);
+
+        //Then
+        assertThat(messageFromServer.getMessage()).isEqualTo(expectMessageRoomOwner.getMessage());
+    }
+
+    @Test
+    public void __라이어맞추고_라이어키워드맞췄을때_점수공개() throws Exception{
+        //Given
+        __라이어정답제출();
+        //When
+        TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+        TestSingleStompHandler<MessageContainer> handler2 = new TestSingleStompHandler<>(MessageContainer.class);
+        stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
+        sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler2);
+
+        MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
+                .uuid(UUID.randomUUID().toString())
+                .senderId(ownerId)
+                .message(new MessageContainer.Message(OPEN_SCORES, "{}"))
+                .build();
+        stompSession.send(String.format("/publish/system/private/%s", roomId), sendMessage);
+
+        //Then
+        MessageContainer message1 = handler1.getCompletableFuture().get(5, SECONDS);
+        MessageContainer message2 = handler2.getCompletableFuture().get(5, SECONDS);
+
+        ScoreBoardResponse scoreBoardResponse = ScoreBoardResponse.builder()
+                .scoreBoard(new HashMap<String,Integer>(){{
+                    put(roomId,1);
+                    put(sessionInfoList.get(0).guestId,1);
+                }})
+                .build();
+        MessageContainer expectMessageOwner = Util.getExpectedMessageContainer(NOTIFY_SCORES, scoreBoardResponse);
+        assertThat(message1).isEqualTo(message2);
+        //TODO:Verify scores
+        //assertThat(message1.getMessage()).isEqualTo(expectMessageOwner.getMessage());
+    }
+
+    @Test
+    public void 라이어정답제출했을때_틀림() throws Exception{
+        //Given
+        __라이어공개요청();
+        //When
+        String liarId = gameService.getGame(roomId).getLiarId();
+        TestSingleStompHandler<MessageContainer> handler1;
+        String body = objectMapper.writeValueAsString(new KeywordRequest("keyword"));
+        if(liarId.equals(ownerId)){
+            handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+            stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
+            MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
+                    .uuid(UUID.randomUUID().toString())
+                    .senderId(ownerId)
+                    .message(new MessageContainer.Message(CHECK_KEYWORD_CORRECT, body))
+                    .build();
+            stompSession.send(String.format("/publish/system/private/%s", roomId), sendMessage);
+        }
+        else{
+            handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+            sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
+            MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
+                    .uuid(UUID.randomUUID().toString())
+                    .senderId(sessionInfoList.get(0).guestId)
+                    .message(new MessageContainer.Message(CHECK_KEYWORD_CORRECT, body))
+                    .build();
+            sessionInfoList.get(0).session.send(String.format("/publish/system/private/%s", roomId), sendMessage);
+        }
+
+        MessageContainer messageFromServer = handler1.getCompletableFuture().get(5, SECONDS);
+
+        String guestId = sessionInfoList.get(0).guestId;
+        LiarAnswerResponse expectResultLiarIsRoomOwner= LiarAnswerResponse.builder()
+                .answer(false)
+                .state(GameState.PUBLISH_SCORE)
+                .build();
+        MessageContainer expectMessageRoomOwner = Util.getExpectedMessageContainer(NOTIFY_LIAR_ANSWER_CORRECT, expectResultLiarIsRoomOwner);
+
+        //Then
+        assertThat(messageFromServer.getMessage()).isEqualTo(expectMessageRoomOwner.getMessage());
     }
 
     private void requestTurnFinishedAndVerify(OpenedGameInfo gameInfoResultFromOwner, TestStompHandler<MessageContainer> handler1, TestStompHandler<MessageContainer> handler2, StompSession session, int i) throws InterruptedException, ExecutionException, TimeoutException {

@@ -4,10 +4,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.game.liar.domain.GameState;
 import com.game.liar.domain.Global;
-import com.game.liar.domain.request.LiarDesignateRequest;
 import com.game.liar.domain.User;
+import com.game.liar.domain.request.KeywordRequest;
+import com.game.liar.domain.request.LiarDesignateRequest;
 import com.game.liar.domain.request.MessageContainer;
 import com.game.liar.domain.request.RoomIdRequest;
+import com.game.liar.domain.response.LiarAnswerResponse;
+import com.game.liar.domain.response.OpenLiarResponse;
+import com.game.liar.domain.response.ScoreBoardResponse;
 import com.game.liar.domain.response.VoteResult;
 import com.game.liar.exception.NotAllowedActionException;
 import com.game.liar.exception.NotExistException;
@@ -144,7 +148,7 @@ public class GameService {
             throw new StateNotAllowedExpcetion("Current State is not SELECT_LIAR");
 
         String liarId = __selectLiar(getUserIdListInRoom(roomId), roomId);
-        gameInfo.selectLiar(liarId);
+        gameInfo.setLiar(liarId);
         gameInfo.nextState();
 
         return gameInfo;
@@ -264,7 +268,7 @@ public class GameService {
         }
         try {
             LiarDesignateRequest liarDesignate = objectMapper.readValue(request.getMessage().getBody(), LiarDesignateRequest.class);
-            if(!gameInfo.isUserInTheRoom(liarDesignate.getLiar())){
+            if (!gameInfo.isUserInTheRoom(liarDesignate.getLiar())) {
                 throw new NotExistException("Designated user does not exist");
             }
             gameInfo.addVoteResult(senderId, liarDesignate.getLiar());
@@ -276,10 +280,62 @@ public class GameService {
 
     public VoteResult getMostVoted(String roomId) {
         GameInfo gameInfo = gameManagerMap.get(roomId);
-        List<Map.Entry<String,Long>> mostVoted = gameInfo.getMostVoted();
+        List<Map.Entry<String, Long>> mostVoted = gameInfo.getMostVoted();
         return VoteResult.builder()
                 .voteResult(gameInfo.getVoteResult())
                 .mostVoted(mostVoted)
                 .build();
+    }
+
+    public OpenLiarResponse openLiar(MessageContainer request, String roomId) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+        String senderId = request.getSenderId();
+        if (gameInfo.getState() != GameState.OPEN_LIAR) {
+            throw new StateNotAllowedExpcetion(String.format("Current State is not OPEN_LIAR. state:%s", gameInfo.getState()));
+        }
+        if (!senderId.equals(gameInfo.getOwnerId())) {
+            throw new NotAllowedActionException("Only room owner can open liar");
+        }
+        gameInfo.nextState();
+        boolean isAnswer = gameInfo.getMostVoted().get(0).getKey().equals(gameInfo.getLiarId());
+        return new OpenLiarResponse(gameInfo.getLiarId(), gameInfo.getState(), isAnswer);
+    }
+
+    public LiarAnswerResponse checkKeywordCorrect(MessageContainer request, String roomId) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+        String senderId = request.getSenderId();
+        if (gameInfo.getState() != GameState.LIAR_ANSWER) {
+            throw new StateNotAllowedExpcetion(String.format("Current State is not LIAR_ANSWER. state:%s", gameInfo.getState()));
+        }
+        if (!senderId.equals(gameInfo.getLiarId())) {
+            throw new NotAllowedActionException("Only liar can request to check keyword is right");
+        }
+        try {
+            KeywordRequest keywordRequest = objectMapper.readValue(request.getMessage().getBody(), KeywordRequest.class);
+            gameInfo.nextState();
+            gameInfo.setLiarAnswer(gameInfo.getCurrentRoundKeyword().equals(keywordRequest.getKeyword()));
+            return new LiarAnswerResponse(gameInfo.isLiarAnswer(),gameInfo.getState());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public ScoreBoardResponse notifyScores(MessageContainer request, String roomId) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+        String senderId = request.getSenderId();
+        if (gameInfo.getState() != GameState.PUBLISH_SCORE) {
+            throw new StateNotAllowedExpcetion(String.format("Current State is not PUBLISH_SCORE. state:%s", gameInfo.getState()));
+        }
+        if (!senderId.equals(gameInfo.getOwnerId())) {
+            throw new NotAllowedActionException("Only Room owner can query user scores");
+        }
+        gameInfo.updateScoreBoard();
+        gameInfo.nextState();
+        return new ScoreBoardResponse(gameInfo.getScoreBoard());
+    }
+
+    public void resetLiarInfo(String roomId) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+        gameInfo.resetLiarInfo();
     }
 }

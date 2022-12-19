@@ -36,7 +36,7 @@ public class MessageContainer {
         public String toString() {
             return  "{\"method\":\"" + method +
                     "\", \"body\":" + body +
-                    "}}";
+                    "}";
         }
     }
 

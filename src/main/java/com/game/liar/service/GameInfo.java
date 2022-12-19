@@ -61,6 +61,13 @@ public class GameInfo {
     @Getter
     private Integer voteCount = 0;
 
+    @Getter
+    @Setter
+    private boolean liarAnswer;
+
+    @Getter
+    private Map<String, Integer> scoreBoard = new ConcurrentHashMap<>();
+
     public String getCurrentTurnId() {
         if (turn >= turnOrder.size())
             return turnOrder.get(turn % turnOrder.size());
@@ -86,20 +93,22 @@ public class GameInfo {
         turn = -1;
     }
 
-    public void selectLiar(String liar) {
+    public void setLiar(String liar) {
         liarId = liar;
     }
 
     public void addUser(User user) {
         userList.add(user);
+        scoreBoard.put(user.getUserId(), 0);
     }
 
     public void deleteUser(User user) {
         userList.remove(user);
+        scoreBoard.remove(user.getUserId());
     }
 
-    public boolean isUserInTheRoom(String userId){
-        return userList.stream().anyMatch(user->user.getUserId().equals(userId));
+    public boolean isUserInTheRoom(String userId) {
+        return userList.stream().anyMatch(user -> user.getUserId().equals(userId));
     }
 
     public void cancelTimer() {
@@ -130,6 +139,39 @@ public class GameInfo {
         voteCount = 0;
     }
 
+    public void resetScoreBoard() {
+        for (Map.Entry<String, Integer> item : scoreBoard.entrySet()) {
+            item.setValue(0);
+        }
+    }
+
+    public void updateScoreBoard() {
+        if (getMostVoted().get(0).getKey().equals(liarId)) {
+            //시민들이 라이어를 맞췄으면 시민들의 점수를 더한다.
+            for (Map.Entry<String, Integer> item : scoreBoard.entrySet()) {
+                if (!item.getKey().equals(liarId)) {
+                    //TODO:make const score
+                    item.setValue(item.getValue() + 1);
+                }
+            }
+        } else {
+            //시민들이 못맞췄으면 라이어의 점수를 더한다.
+            Integer score = scoreBoard.get(liarId);
+            scoreBoard.replace(liarId, score + 2);
+
+            //잘찍은 시민들은 점수를 더한다.
+            scoreBoard.entrySet().stream().filter(entry ->
+                    !entry.getKey().equals(liarId) && getVoteResult().get(entry.getKey()).equals(liarId))
+                    .forEach(item -> item.setValue(item.getValue() + 1));
+        }
+        if (isLiarAnswer()) {
+            //이번턴에 라이어의 점수를 X점 더한다.
+            Integer score = scoreBoard.get(liarId);
+            scoreBoard.replace(liarId, score + 1);
+        }
+        log.info("scoreBoard : {}",scoreBoard);
+    }
+
     public synchronized boolean voteFinished() {
         return voteCount == turnOrder.size();
     }
@@ -140,6 +182,10 @@ public class GameInfo {
                         .collect(Collectors.groupingBy(liar -> liar, Collectors.counting()));
         Map.Entry<String, Long> mostVoted = voteCountByDesignatedId.entrySet().stream().max(Map.Entry.comparingByValue()).get();
         return voteCountByDesignatedId.entrySet().stream().filter(entry -> entry.getValue() == mostVoted.getValue()).collect(Collectors.toList());
+    }
+
+    public void resetLiarInfo() {
+        liarId = null;
     }
 
     @Getter

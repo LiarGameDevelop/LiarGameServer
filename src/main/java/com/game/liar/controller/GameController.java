@@ -201,6 +201,63 @@ public class GameController {
         }
     }
 
+    ProcessGame openLiar = (request, roomId) -> {
+        OpenLiarResponse openLiarResponse = gameService.openLiar(request, roomId);
+        String body;
+        try {
+            body = objectMapper.writeValueAsString(openLiarResponse);
+            log.info("[API]openLiar response : {}", body);
+            sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_OPENED, body), roomId);
+
+            __notifyLiarAnswerNeeded(roomId);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    };
+
+    ProcessGame checkKeywordCorrect = (request, roomId) -> {
+        LiarAnswerResponse liarAnswerResponse = gameService.checkKeywordCorrect(request, roomId);
+        String body;
+        try {
+            body = objectMapper.writeValueAsString(liarAnswerResponse);
+            log.info("[API]checkKeywordCorrect response : {}", body);
+            sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_CORRECT, body), roomId);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    };
+
+    ProcessGame openScores = (request, roomId) -> {
+        ScoreBoardResponse scoreBoardResponse = gameService.notifyScores(request, roomId);
+        String body;
+        try {
+            body = objectMapper.writeValueAsString(scoreBoardResponse);
+            log.info("[API]notifyScores response : {}", body);
+            sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_SCORES, body), roomId);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    };
+
+    ProcessGame publishRankings = (request, roomId) -> {
+        ScoreBoardResponse scoreBoardResponse = gameService.notifyScores(request, roomId);
+        String body;
+        try {
+            body = objectMapper.writeValueAsString(scoreBoardResponse);
+            log.info("[API]notifyScores response : {}", body);
+            sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_SCORES, body), roomId);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    };
+
+    private void __notifyLiarAnswerNeeded(String roomId) {
+        GameInfo gameInfo = gameService.getGame(roomId);
+        String liar = gameInfo.getLiarId();
+        log.info("[API]notifyLiarAnswerNeeded from room id :{}", roomId);
+        sendPrivateMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_NEEDED, "{}"), liar);
+    }
+
     private void resetTask(MessageContainer request, String roomId, GameInfo gameInfo) {
         TimerTask task = new TimerTask() {
             @Override
@@ -236,10 +293,11 @@ public class GameController {
             put(Global.OPEN_KEYWORD, openKeyword);
             put(Global.REQUEST_TURN_FINISH, requestTurnFinished);
             put(Global.VOTE_LIAR, voteLiar);
-            put(Global.OPEN_LIAR, startGame);
-            put(Global.REQUEST_LIAR_ANSWER, startGame);
-            put(Global.CHECK_LIAR_ANSWER, startGame);
-            put(Global.PUBLISH_SCORE, startGame);
+            put(Global.OPEN_LIAR, openLiar);
+            put(Global.CHECK_KEYWORD_CORRECT, checkKeywordCorrect);
+            put(Global.OPEN_SCORES, openScores);
+            put(Global.PUBLISH_RANKINGS, publishRankings);
+            put(Global.END_ROUND, startGame);
         }
     };
 

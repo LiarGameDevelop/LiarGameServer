@@ -84,16 +84,6 @@ public enum GameState {
     LIAR_ANSWER() {
         @Override
         public GameState next() {
-            return CHECK_LIAR_ANSWER;
-        }
-        @Override
-        public GameState loop() {
-            return CHECK_LIAR_ANSWER;
-        }
-    },
-    CHECK_LIAR_ANSWER() {
-        @Override
-        public GameState next() {
             return PUBLISH_SCORE;
         }
         @Override
@@ -101,7 +91,6 @@ public enum GameState {
             return PUBLISH_SCORE;
         }
     },
-
     PUBLISH_SCORE() {
         @Override
         public GameState next() {

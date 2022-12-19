@@ -6,10 +6,9 @@ import com.game.liar.domain.GameState;
 import com.game.liar.domain.Global;
 import com.game.liar.domain.Room;
 import com.game.liar.domain.User;
-import com.game.liar.domain.request.LiarDesignateRequest;
-import com.game.liar.domain.request.MessageContainer;
-import com.game.liar.domain.request.RoomIdAndUserIdRequest;
-import com.game.liar.domain.request.RoomInfoRequest;
+import com.game.liar.domain.request.*;
+import com.game.liar.domain.response.OpenLiarResponse;
+import com.game.liar.domain.response.ScoreBoardResponse;
 import com.game.liar.exception.MaxCountException;
 import com.game.liar.exception.NotAllowedActionException;
 import com.game.liar.exception.StateNotAllowedExpcetion;
@@ -684,5 +683,713 @@ class GameServiceTest {
         //Then
         assertThat(gameInfo.getVoteCount()).isEqualTo(2);
         assertThat(gameInfo.getMostVoted()).containsAll(Arrays.asList(new AbstractMap.SimpleEntry<>(guestId, 1L), new AbstractMap.SimpleEntry<>(roomOwnerId, 1L)));
+    }
+
+    @Test
+    public void 라이어투표_StateError() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: OPEN_KEYWORD
+        gameService.nextGameState(roomId); //after: IN_PROGRESS
+
+        //when
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+
+
+        //Then
+        assertThrows(StateNotAllowedExpcetion.class, () -> {
+            gameService.voteLiar(MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR,
+                            objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                    .senderId(roomOwnerId)
+                    .uuid(UUID.randomUUID().toString())
+                    .build(), roomId);
+        });
+    }
+
+    @Test
+    public void 라이어투표_재투표Error() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: OPEN_KEYWORD
+        gameService.nextGameState(roomId); //after: IN_PROGRESS
+
+        //when
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+
+        //Then
+        assertThrows(NotAllowedActionException.class, () -> {
+            gameService.voteLiar(MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR,
+                            objectMapper.writeValueAsString(new LiarDesignateRequest(roomOwnerId))))
+                    .senderId(roomOwnerId)
+                    .uuid(UUID.randomUUID().toString())
+                    .build(), roomId);
+        });
+    }
+
+    @Test
+    public void 라이어발표() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.SELECT_LIAR, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.selectLiar(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: IN_PROGRESS
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        gameService.nextGameState(roomId);
+
+        //when
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        OpenLiarResponse result = gameService.openLiar(messageContainer, roomId);
+
+        assertThat(result.getState()).isEqualTo(GameState.LIAR_ANSWER);
+        assertThat(result.getLiar()).satisfiesAnyOf(
+                param -> {
+                    assertThat(result.getLiar()).isEqualTo(roomOwnerId);
+                    assertThat(result.isMatchLiar()).isEqualTo(false);
+                },
+                param -> {
+                    assertThat(result.getLiar()).isEqualTo(guestId);
+                    assertThat(result.isMatchLiar()).isEqualTo(true);
+                }
+        );
+        gameService.resetLiarInfo(roomId);
+        assertThat(gameInfo.getLiarId()).isNull();
+    }
+
+    @Test
+    public void 라이어발표_방장아닌사람의요청Error() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.SELECT_LIAR, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.selectLiar(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: IN_PROGRESS
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        gameService.getMostVoted(roomId);
+        gameService.nextGameState(roomId);
+
+        //when, then
+        assertThrows(NotAllowedActionException.class, () -> gameService.openLiar(MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build(), roomId));
+    }
+
+    @Test
+    public void 라이어발표_StateError() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.SELECT_LIAR, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.selectLiar(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: IN_PROGRESS
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        gameService.getMostVoted(roomId);
+        gameService.nextGameState(roomId);
+        gameService.nextGameState(roomId);
+
+        //when, then
+        assertThrows(StateNotAllowedExpcetion.class, () -> gameService.openLiar(MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build(), roomId));
+    }
+
+    @Test
+    public void 라이어가_정답맞췄는지요청() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.SELECT_LIAR, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.selectLiar(messageContainer, roomId);
+
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_KEYWORD, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.openKeyword(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        gameService.nextGameState(roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+
+        //when
+        String liarId = gameInfo.getLiarId();
+        gameService.openLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                        objectMapper.writeValueAsString(new KeywordRequest(gameInfo.getCurrentRoundKeyword()))))
+                .senderId(liarId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.checkKeywordCorrect(messageContainer, roomId);
+
+        //then
+        assertThat(gameInfo.isLiarAnswer()).isEqualTo(true);
+    }
+
+    @Test
+    public void 라이어가_정답요청했으나_정답틀림() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.SELECT_LIAR, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.selectLiar(messageContainer, roomId);
+
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_KEYWORD, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.openKeyword(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        gameService.nextGameState(roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+
+        //when
+        String liarId = gameInfo.getLiarId();
+        gameService.openLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                        objectMapper.writeValueAsString(new KeywordRequest())))
+                .senderId(liarId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.checkKeywordCorrect(messageContainer, roomId);
+
+        //then
+        assertThat(gameInfo.isLiarAnswer()).isEqualTo(false);
+    }
+
+    @Test
+    public void 라운드종료후_점수확인_게스트1라이어_라이어맞춤_라이어정답맞춤() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        gameInfo.setLiar(guestId);
+        gameService.nextGameState(roomId);
+
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_KEYWORD, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.openKeyword(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        gameService.nextGameState(roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+
+        //when
+        String liarId = gameInfo.getLiarId();
+        gameService.openLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                        objectMapper.writeValueAsString(new KeywordRequest(gameInfo.getCurrentRoundKeyword()))))
+                .senderId(liarId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+
+        gameService.checkKeywordCorrect(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_SCORES,
+                        "{}"))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        ScoreBoardResponse scoreBoardResponse = gameService.notifyScores(messageContainer, roomId);
+
+        //then
+        ScoreBoardResponse expectedScores = ScoreBoardResponse.builder()
+                .scoreBoard(new HashMap<String, Integer>() {{
+                    put(roomOwnerId, 1);
+                    put(guestId, 1);
+                }})
+                .build();
+        assertThat(scoreBoardResponse.getScoreBoard()).isEqualTo(expectedScores.getScoreBoard());
+    }
+
+    @Test
+    public void 라운드종료후_점수확인_게스트1라이어_라이어맞춤_라이어정답틀림() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        gameInfo.setLiar(guestId);
+        gameService.nextGameState(roomId);
+
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_KEYWORD, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.openKeyword(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        gameService.nextGameState(roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+
+        //when
+        String liarId = gameInfo.getLiarId();
+        gameService.openLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                        objectMapper.writeValueAsString(new KeywordRequest(""))))
+                .senderId(liarId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.checkKeywordCorrect(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_SCORES,
+                        "{}"))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        ScoreBoardResponse scoreBoardResponse = gameService.notifyScores(messageContainer, roomId);
+
+        //then
+        ScoreBoardResponse expectedScores = ScoreBoardResponse.builder()
+                .scoreBoard(new HashMap<String, Integer>() {{
+                    put(roomOwnerId, 1);
+                    put(guestId, 0);
+                }})
+                .build();
+        assertThat(scoreBoardResponse.getScoreBoard()).isEqualTo(expectedScores.getScoreBoard());
+    }
+
+    @Test
+    public void 라운드종료후_점수확인_게스트1라이어_라이어틀림_라이어정답맞춤() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        gameInfo.setLiar(guestId);
+        gameService.nextGameState(roomId);
+
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_KEYWORD, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.openKeyword(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(roomOwnerId))))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(roomOwnerId))))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        gameService.nextGameState(roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+
+        //when
+        String liarId = gameInfo.getLiarId();
+        gameService.openLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                        objectMapper.writeValueAsString(new KeywordRequest(gameInfo.getCurrentRoundKeyword()))))
+                .senderId(liarId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.checkKeywordCorrect(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_SCORES,
+                        "{}"))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        ScoreBoardResponse scoreBoardResponse = gameService.notifyScores(messageContainer, roomId);
+
+        //then
+        ScoreBoardResponse expectedScores = ScoreBoardResponse.builder()
+                .scoreBoard(new HashMap<String, Integer>() {{
+                    put(roomOwnerId, 0);
+                    put(guestId, 3);
+                }})
+                .build();
+        assertThat(scoreBoardResponse.getScoreBoard()).isEqualTo(expectedScores.getScoreBoard());
+    }
+
+    @Test
+    public void 라운드종료후_점수확인_게스트1라이어_라이어틀림_라이어정답틀림() throws Exception {
+        //Given
+        Room room = 방생성("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = 방인원추가(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports", "celebrity"))
+                .build());
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startRound(messageContainer, roomId);
+
+        gameInfo.setLiar(guestId);
+        gameService.nextGameState(roomId);
+
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_KEYWORD, null))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.openKeyword(messageContainer, roomId);
+
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(roomOwnerId))))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(roomOwnerId))))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        gameService.nextGameState(roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+
+        //when
+        String liarId = gameInfo.getLiarId();
+        gameService.openLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                        objectMapper.writeValueAsString(new KeywordRequest(""))))
+                .senderId(liarId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.checkKeywordCorrect(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_SCORES,
+                        "{}"))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        ScoreBoardResponse scoreBoardResponse = gameService.notifyScores(messageContainer, roomId);
+
+        //then
+        ScoreBoardResponse expectedScores = ScoreBoardResponse.builder()
+                .scoreBoard(new HashMap<String, Integer>() {{
+                    put(roomOwnerId, 0);
+                    put(guestId, 2);
+                }})
+                .build();
+        assertThat(scoreBoardResponse.getScoreBoard()).isEqualTo(expectedScores.getScoreBoard());
     }
 }
