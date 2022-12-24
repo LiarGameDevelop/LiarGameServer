@@ -225,9 +225,7 @@ public class GameController {
         }
     };
 
-    ProcessGame checkKeywordCorrect = (request, roomId) -> {
-        __checkKeywordCorrect(request, roomId);
-    };
+    ProcessGame checkKeywordCorrect = this::__checkKeywordCorrect;
 
     private void __checkKeywordCorrect(MessageContainer request, String roomId) {
         gameService.cancelAnswerTimer(roomId);
@@ -330,6 +328,7 @@ public class GameController {
     };
 
     private void __registerTurnTimeoutNotification(MessageContainer request, String roomId, GameInfo gameInfo) {
+        log.info("[API]register notifyTurnTimeout from room id :{}", roomId);
         TimerTask task = new TimerTask() {
             @Override
             public void run() {
@@ -367,6 +366,7 @@ public class GameController {
     }
 
     private void __registerLiarAnswerTimeoutNotification(MessageContainer request, String roomId, GameInfo gameInfo) {
+        log.info("[API]register notifyAnswerTimeout from room id :{}", roomId);
         TimerTask task = new TimerTask() {
             @Override
             public void run() {
