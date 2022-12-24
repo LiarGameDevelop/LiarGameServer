@@ -12,9 +12,7 @@ import com.game.liar.domain.request.RoomInfoRequest;
 import com.game.liar.domain.response.*;
 import com.game.liar.service.GameInfo;
 import com.game.liar.service.GameService;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -65,16 +63,29 @@ class GameControllerTest {
     List<SessionInfo> sessionInfoList = new ArrayList<>();
 
     @BeforeEach
-    void init() throws ExecutionException, InterruptedException, TimeoutException {
+    void init(){
         stompClient = new WebSocketStompClient(new SockJsClient(createTransportClient()));
         stompClient.setMessageConverter(new MappingJackson2MessageConverter());
 
-        stompSession = stompClient.connect("ws://localhost:" + port + "/ws-connection", new StompSessionHandlerAdapter() {
-        }).get(3, SECONDS);
+        try {
+            stompSession = stompClient.connect("ws://localhost:" + port + "/ws-connection", new StompSessionHandlerAdapter() {
+            }).get(3, SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            throw new RuntimeException(e);
+        }
 
         assertThat(stompSession).isNotNull();
         assertThat(stompSession.isConnected()).isTrue();
         gameController.setTimeout(5000);
+
+        try {
+            방생성("roomOwner"+UUID.randomUUID().toString());
+            게임참가("user1"+UUID.randomUUID().toString());
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+
     }
 
     @AfterEach
@@ -102,8 +113,8 @@ class GameControllerTest {
         assertThat(s.session.isConnected()).isTrue();
     }
 
-    private void 방생성() throws Exception {
-        RoomInfoResponseDto roomInfo = roomController.create(new RoomInfoRequest(5, "roomOwner"), null);
+    private void 방생성(String roomOwner) throws Exception {
+        RoomInfoResponseDto roomInfo = roomController.create(new RoomInfoRequest(5, roomOwner), null);
         roomId = roomInfo.getRoomId();
         ownerId = roomInfo.getOwnerId();
     }
@@ -115,8 +126,6 @@ class GameControllerTest {
 
     private void __게임시작() throws Exception {
         //given
-        방생성();
-        게임참가("user1");
 
         //when
         String uuid = UUID.randomUUID().toString();
@@ -157,7 +166,7 @@ class GameControllerTest {
 
     private void __라운드시작() throws Exception {
         //when
-        게임시작();
+        __게임시작();
         System.out.println("라운드시작=================================================================================================");
         TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
         stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
@@ -210,7 +219,7 @@ class GameControllerTest {
         sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/private/%s", sessionInfoList.get(0).guestId), handler2);
 
         //then
-        Thread.sleep(1500);
+        Thread.sleep(5000);
         MessageContainer messageToOwner = handler1.getCompletableFuture(0);
         MessageContainer expectMessageToOwner = MessageContainer.messageContainerBuilder()
                 .senderId("SERVER")
@@ -680,6 +689,7 @@ class GameControllerTest {
     private void __라이어정답제출() throws Exception {
         //Given
         __라이어공개요청();
+        gameService.cancelAnswerTimer(roomId);
         //When
         TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
 
@@ -756,6 +766,7 @@ class GameControllerTest {
     public void 라이어정답제출했을때_틀림() throws Exception {
         //Given
         __라이어공개요청();
+        gameService.cancelAnswerTimer(roomId);
         //When
         TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
         __checkIfLiarAnswerIsCorrect(handler1, "");
@@ -963,6 +974,7 @@ class GameControllerTest {
         public final Queue<CompletableFuture<T>> completableFuture = new ConcurrentLinkedQueue<>();
 
         private CompletableFuture<T> __getCompletableFuture() {
+            System.out.println(LocalDateTime.now() + ":[TestStompHandlerChain] getCompletableFuture size:"+completableFuture.size());
             return completableFuture.peek();
         }
 
@@ -985,7 +997,7 @@ class GameControllerTest {
 
         @Override
         public Type getPayloadType(StompHeaders headers) {
-            //System.out.println(LocalDateTime.now() + "payload : " + headers);
+            System.out.println(LocalDateTime.now() + "payload : " + headers);
             return this.tClass;
         }
 
@@ -995,7 +1007,7 @@ class GameControllerTest {
                 CompletableFuture<T> future = new CompletableFuture<>();
                 future.complete((T) payload);
                 completableFuture.add(future);
-                //System.out.println(LocalDateTime.now() + ":[TestStompHandler] handleFrame headers: " + headers + ", payload: " + payload + ", completableFuture.size() :" + completableFuture.size());
+                System.out.println(LocalDateTime.now() + ":[TestStompHandlerChain] handleFrame headers: " + headers + ", payload: " + payload + ", completableFuture.size() :" + completableFuture.size());
             }
         }
     }
