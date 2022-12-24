@@ -12,7 +12,7 @@ public class Global {
     public static final String NOTIFY_KEYWORD_OPENED = "notifyKeywordOpened";
     public static final String NOTIFY_TURN_TIMEOUT = "notifyTurnTimeout";
     public static final String NOTIFY_TURN = "notifyTurn";
-    public static final String NOTIFY_ROUND_END = "notifyRoundEnd";
+    public static final String NOTIFY_FINDING_LIAR_END = "notifyFindingLiarEnd";
     public static final String NOTIFY_VOTE_RESULT = "notifyVoteResult";
 
     public static final String NOTIFY_NEW_VOTE_NEEDED = "notifyNewVoteNeeded";
@@ -22,6 +22,9 @@ public class Global {
     public static final String NOTIFY_LIAR_ANSWER_CORRECT = "notifyLiarAnswerCorrect";
     public static final String NOTIFY_LIAR_ANSWER_TIMEOUT = "notifyLiarAnswerTimeOut";
     public static final String NOTIFY_SCORES ="notifyScores";
+    public static final String NOTIFY_ROUND_END = "notifyRoundEnd";
+    public static final String NOTIFY_RANKINGS_PUBLISHED = "notifyRankingsPublished";
+    public static final String NOTIFY_GAME_END = "notifyGameEnd";
     public static final String NOTIFY_GAME_STATE = "notifyGameState";
     /**
      * Client -> Server method

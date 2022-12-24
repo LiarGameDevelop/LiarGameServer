@@ -9,10 +9,7 @@ import com.game.liar.domain.request.KeywordRequest;
 import com.game.liar.domain.request.LiarDesignateRequest;
 import com.game.liar.domain.request.MessageContainer;
 import com.game.liar.domain.request.RoomIdRequest;
-import com.game.liar.domain.response.LiarAnswerResponse;
-import com.game.liar.domain.response.OpenLiarResponse;
-import com.game.liar.domain.response.ScoreBoardResponse;
-import com.game.liar.domain.response.VoteResult;
+import com.game.liar.domain.response.*;
 import com.game.liar.exception.NotAllowedActionException;
 import com.game.liar.exception.NotExistException;
 import com.game.liar.exception.StateNotAllowedExpcetion;
@@ -130,8 +127,8 @@ public class GameService {
         }
         if (gameInfo.getState() != GameState.BEFORE_ROUND)
             throw new StateNotAllowedExpcetion("Game does not start");
-        if (gameInfo.getGameSettings().getRound() <= gameInfo.getRound() + 1) {
-            throw new NotAllowedActionException("Round is Over. ");
+        if (gameInfo.getGameSettings().getRound() < gameInfo.getRound() + 1) {
+            throw new NotAllowedActionException("Round is over.");
         }
         gameInfo.nextRound();
         gameInfo.nextState();
@@ -217,11 +214,10 @@ public class GameService {
         return gameInfo;
     }
 
-    public GameInfo notifyRoundEnd(String roomId) {
+    public GameInfo notifyFindingLiarEnd(String roomId) {
         GameInfo gameInfo = gameManagerMap.get(roomId);
         if (gameInfo.getState() != GameState.IN_PROGRESS)
             throw new StateNotAllowedExpcetion(String.format("Current State is not IN_PROGRESS. state:%s", gameInfo.getState()));
-        gameInfo.nextRound();
         gameInfo.resetTurn();
         gameInfo.nextState();
         return gameInfo;
@@ -257,25 +253,29 @@ public class GameService {
         }
     }
 
-    public synchronized GameInfo voteLiar(MessageContainer request, String roomId) {
+    public GameInfo voteLiar(MessageContainer request, String roomId) {
         GameInfo gameInfo = gameManagerMap.get(roomId);
         String senderId = request.getSenderId();
-        if (gameInfo.getState() != GameState.VOTE_LIAR) {
-            throw new StateNotAllowedExpcetion(String.format("Current State is not VOTE_LIAR. state:%s", gameInfo.getState()));
-        }
-        if (gameInfo.checkVoteCompleted(senderId)) {
-            throw new NotAllowedActionException("Vote finished");
-        }
-        try {
-            LiarDesignateRequest liarDesignate = objectMapper.readValue(request.getMessage().getBody(), LiarDesignateRequest.class);
-            if (!gameInfo.isUserInTheRoom(liarDesignate.getLiar())) {
-                throw new NotExistException("Designated user does not exist");
+        synchronized (this) {
+            if (gameInfo.getState() != GameState.VOTE_LIAR) {
+                throw new StateNotAllowedExpcetion(String.format("Current State is not VOTE_LIAR. state:%s", gameInfo.getState()));
             }
-            gameInfo.addVoteResult(senderId, liarDesignate.getLiar());
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            if (gameInfo.checkVoteCompleted(senderId)) {
+                throw new NotAllowedActionException("Vote finished");
+            }
+            try {
+                LiarDesignateRequest liarDesignate = objectMapper.readValue(request.getMessage().getBody(), LiarDesignateRequest.class);
+                if (liarDesignate.getLiar().equals("")) {
+                    log.debug("vote timeout from room id : {}, GameInfo: {}", roomId, gameInfo);
+                } else if (!gameInfo.isUserInTheRoom(liarDesignate.getLiar())) {
+                    throw new NotExistException("Designated user does not exist");
+                }
+                gameInfo.addVoteResult(senderId, liarDesignate.getLiar());
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+            return gameInfo;
         }
-        return gameInfo;
     }
 
     public VoteResult getMostVoted(String roomId) {
@@ -314,7 +314,7 @@ public class GameService {
             KeywordRequest keywordRequest = objectMapper.readValue(request.getMessage().getBody(), KeywordRequest.class);
             gameInfo.nextState();
             gameInfo.setLiarAnswer(gameInfo.getCurrentRoundKeyword().equals(keywordRequest.getKeyword()));
-            return new LiarAnswerResponse(gameInfo.isLiarAnswer(),gameInfo.getState());
+            return new LiarAnswerResponse(gameInfo.isLiarAnswer(), gameInfo.getState());
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
@@ -330,12 +330,64 @@ public class GameService {
             throw new NotAllowedActionException("Only Room owner can query user scores");
         }
         gameInfo.updateScoreBoard();
-        gameInfo.nextState();
         return new ScoreBoardResponse(gameInfo.getScoreBoard());
+    }
+
+    public GameInfo notifyRoundEnd(String roomId) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+        if (gameInfo.getState() != GameState.PUBLISH_SCORE)
+            throw new StateNotAllowedExpcetion(String.format("Current State is not PUBLISH_SCORE. state:%s", gameInfo.getState()));
+        if (gameInfo.getRound().intValue() == gameInfo.getGameSettings().getRound().intValue())
+            gameInfo.nextState();
+        else
+            gameInfo.nextLoop();
+        return gameInfo;
     }
 
     public void resetLiarInfo(String roomId) {
         GameInfo gameInfo = gameManagerMap.get(roomId);
         gameInfo.resetLiarInfo();
+    }
+
+    public Rankings publishRankings(MessageContainer request, String roomId) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+        String senderId = request.getSenderId();
+        if (gameInfo.getState() != GameState.PUBLISH_RANKINGS)
+            throw new StateNotAllowedExpcetion(String.format("Current State is not PUBLISH_RANKINGS. state:%s", gameInfo.getState()));
+        if (!senderId.equals(gameInfo.getOwnerId())) {
+            throw new NotAllowedActionException("Only Room owner can query publish rankings");
+        }
+        //{"rankings":[{"id":"id1","score":12},{"id":"id2","score":11}]}
+        Rankings rankings = new Rankings(gameInfo.getScoreBoard().entrySet().stream().sorted(Map.Entry.comparingByValue((entry1, entry2) -> entry2.compareTo(entry1)))
+                .map(entry -> new Rankings.RankingInfo(entry.getKey(), entry.getValue()))
+                .collect(Collectors.toList()));
+
+        return rankings;
+    }
+
+    public List<String> getNotVoteUserList(String roomId) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+        List<String> notVoteUserList = new ArrayList<>();
+        log.info("gameInfo.getUserList : {}", gameInfo.getUserList());
+        log.info("gameInfo.getVoteResult : {}", gameInfo.getVoteResult());
+        for (User user : gameInfo.getUserList()) {
+            if (gameInfo.getVoteResult().get(user.getUserId()) == null)
+                notVoteUserList.add(user.getUserId());
+        }
+        return notVoteUserList;
+    }
+
+    public void cancelTurnTimer(String roomId){
+        gameManagerMap.get(roomId).cancelTurnTimer();
+    }
+    public void cancelVoteTimer(String roomId){
+        gameManagerMap.get(roomId).cancelVoteTimer();
+    }
+    public void cancelAnswerTimer(String roomId){
+        gameManagerMap.get(roomId).cancelAnswerTimer();
+    }
+
+    public void resetGame(String roomId) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
     }
 }

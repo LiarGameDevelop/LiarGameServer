@@ -16,9 +16,19 @@ import java.util.stream.Collectors;
 @ToString
 public class GameInfo {
     @Getter
-    private Timer turnTimer = new Timer();
+    private Timer turnTimer;
     @Getter
+    private Timer voteTimer;
+    @Getter
+    private Timer answerTimer;
     private GameState state;
+
+    public GameState getState() {
+        synchronized (this) {
+            return state;
+        }
+    }
+
     @Getter
     private String roomId;
     @Getter
@@ -69,9 +79,12 @@ public class GameInfo {
     private Map<String, Integer> scoreBoard = new ConcurrentHashMap<>();
 
     public String getCurrentTurnId() {
-        if (turn >= turnOrder.size())
-            return turnOrder.get(turn % turnOrder.size());
-        return turnOrder.get(turn);
+        synchronized (this) {
+            log.info("[getCurrentTurnId] turn : {}", turn);
+            if (turn >= turnOrder.size())
+                return turnOrder.get(turn % turnOrder.size());
+            return turnOrder.get(turn);
+        }
     }
 
     public void initialize() {
@@ -85,8 +98,10 @@ public class GameInfo {
     }
 
     public void nextTurn() {
-        turn++;
-        log.info("current turn is {}, room id : {}", turn, roomId);
+        synchronized (this) {
+            turn++;
+            log.info("current turn is {}, room id : {}", turn, roomId);
+        }
     }
 
     public void resetTurn() {
@@ -111,18 +126,43 @@ public class GameInfo {
         return userList.stream().anyMatch(user -> user.getUserId().equals(userId));
     }
 
-    public void cancelTimer() {
-        log.info("cancel timer");
+    public void cancelTurnTimer() {
+        if (turnTimer == null) return;
+        log.info("cancel turn timer");
         turnTimer.cancel();
     }
 
-    public void scheduleTimer(TimerTask task, long delay) {
+    public void cancelVoteTimer() {
+        if (voteTimer == null) return;
+        log.info("cancel vote timer");
+        voteTimer.cancel();
+    }
+
+    public void cancelAnswerTimer() {
+        if (voteTimer == null) return;
+        log.info("cancel liar answer timer");
+        voteTimer.cancel();
+    }
+
+    public void scheduleTurnTimer(TimerTask task, long delay) {
         turnTimer = new Timer();
         turnTimer.schedule(task, delay);
     }
 
+    public void scheduleVoteTimer(TimerTask task, long delay) {
+        voteTimer = new Timer();
+        voteTimer.schedule(task, delay);
+    }
+
+    public void scheduleAnswerTimer(TimerTask task, long delay) {
+        answerTimer = new Timer();
+        answerTimer.schedule(task, delay);
+    }
+
     public boolean isLastTurn() {
-        return turn == turnOrder.size() * gameSettings.turn;
+        synchronized (this) {
+            return turn == turnOrder.size() * gameSettings.turn;
+        }
     }
 
     public void addVoteResult(String from, String liarDesignatedId) {
@@ -161,7 +201,7 @@ public class GameInfo {
 
             //잘찍은 시민들은 점수를 더한다.
             scoreBoard.entrySet().stream().filter(entry ->
-                    !entry.getKey().equals(liarId) && getVoteResult().get(entry.getKey()).equals(liarId))
+                            !entry.getKey().equals(liarId) && getVoteResult().get(entry.getKey()).equals(liarId))
                     .forEach(item -> item.setValue(item.getValue() + 1));
         }
         if (isLiarAnswer()) {
@@ -169,7 +209,7 @@ public class GameInfo {
             Integer score = scoreBoard.get(liarId);
             scoreBoard.replace(liarId, score + 1);
         }
-        log.info("scoreBoard : {}",scoreBoard);
+        log.info("scoreBoard : {}", scoreBoard);
     }
 
     public synchronized boolean voteFinished() {
@@ -179,9 +219,12 @@ public class GameInfo {
     public List<Map.Entry<String, Long>> getMostVoted() {
         Map<String, Long> voteCountByDesignatedId =
                 voteResult.values().stream()
+                        .filter(value -> !value.equals(""))
                         .collect(Collectors.groupingBy(liar -> liar, Collectors.counting()));
+        log.info("voteResult :{} from [{}]", voteResult, roomId);
         Map.Entry<String, Long> mostVoted = voteCountByDesignatedId.entrySet().stream().max(Map.Entry.comparingByValue()).get();
-        return voteCountByDesignatedId.entrySet().stream().filter(entry -> entry.getValue() == mostVoted.getValue()).collect(Collectors.toList());
+        return voteCountByDesignatedId.entrySet().stream()
+                .filter(entry -> entry.getValue().longValue() == mostVoted.getValue().longValue()).collect(Collectors.toList());
     }
 
     public void resetLiarInfo() {
@@ -228,6 +271,10 @@ public class GameInfo {
 
     public GameState nextState() {
         return state = state.next();
+    }
+
+    public GameState nextLoop() {
+        return state = state.loop();
     }
 
     public GameState setState(GameState gameState) {
