@@ -81,13 +81,11 @@ class GameControllerTest {
         gameController.setTimeout(5000);
 
         try {
-            방생성("roomOwner" + UUID.randomUUID().toString());
-            게임참가("user1" + UUID.randomUUID().toString());
+            방생성("roomOwner");
+            게임참가("user1");
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-
-
     }
 
     @AfterEach
@@ -222,7 +220,7 @@ class GameControllerTest {
         StompSession.Subscription sub2 = sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/private/%s", sessionInfoList.get(0).guestId), handler2);
 
         //then
-        Thread.sleep(5000);
+        Thread.sleep(1000);
         MessageContainer messageToOwner = handler1.getCompletableFuture().get(3, SECONDS);
         MessageContainer expectMessageToOwner = MessageContainer.messageContainerBuilder()
                 .senderId("SERVER")
