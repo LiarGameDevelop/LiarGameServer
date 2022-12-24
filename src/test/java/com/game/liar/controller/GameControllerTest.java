@@ -88,11 +88,6 @@ class GameControllerTest {
         }
     }
 
-    @AfterEach
-    public void initFuture() {
-        //roomMessageHandler.completableFuture.clear();
-    }
-
     private class SessionInfo {
         StompSession session;
         RoomInfoResponseDto roomInfo;
