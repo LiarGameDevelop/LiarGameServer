@@ -12,7 +12,6 @@ import com.game.liar.domain.request.RoomInfoRequest;
 import com.game.liar.domain.response.*;
 import com.game.liar.service.GameInfo;
 import com.game.liar.service.GameService;
-import jdk.jshell.JShell;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
