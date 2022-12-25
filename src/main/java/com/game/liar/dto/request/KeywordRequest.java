@@ -1,4 +1,4 @@
-package com.game.liar.domain.request;
+package com.game.liar.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

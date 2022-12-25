@@ -1,5 +1,7 @@
 package com.game.liar.domain;
 
+import lombok.ToString;
+
 public class Global {
     /**
      * Server -> Client method
@@ -45,4 +47,9 @@ public class Global {
 
     //Common
     public static final String SERVER_ID="SERVER";
+
+    public enum MessageType {
+        MESSAGE,
+        DESCRIPTION
+    }
 }

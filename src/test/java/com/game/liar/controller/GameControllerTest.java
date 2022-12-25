@@ -5,14 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.game.liar.config.GameCategoryProperties;
 import com.game.liar.domain.GameState;
 import com.game.liar.domain.Global;
-import com.game.liar.domain.request.KeywordRequest;
-import com.game.liar.domain.request.MessageContainer;
-import com.game.liar.domain.request.RoomIdAndUserIdRequest;
-import com.game.liar.domain.request.RoomInfoRequest;
-import com.game.liar.domain.response.*;
+import com.game.liar.dto.request.KeywordRequest;
+import com.game.liar.dto.request.MessageContainer;
+import com.game.liar.dto.request.RoomIdAndUserIdRequest;
+import com.game.liar.dto.request.RoomInfoRequest;
+import com.game.liar.dto.response.*;
 import com.game.liar.service.GameInfo;
 import com.game.liar.service.GameService;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -215,7 +214,7 @@ class GameControllerTest {
         StompSession.Subscription sub2 = sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/private/%s", sessionInfoList.get(0).guestId), handler2);
 
         //then
-        Thread.sleep(1000);
+        Thread.sleep(5000);
         MessageContainer messageToOwner = handler1.getCompletableFuture().get(3, SECONDS);
         MessageContainer expectMessageToOwner = MessageContainer.messageContainerBuilder()
                 .senderId("SERVER")
@@ -223,6 +222,7 @@ class GameControllerTest {
                 .uuid(uuid)
                 .build();
 
+        Thread.sleep(5000);
         MessageContainer messageToUser = handler2.getCompletableFuture().get(3, SECONDS);
         MessageContainer expectMessageToUser = MessageContainer.messageContainerBuilder()
                 .senderId("SERVER")

@@ -2,10 +2,10 @@ package com.game.liar.service;
 
 import com.game.liar.domain.User;
 import com.game.liar.domain.Room;
-import com.game.liar.domain.request.RoomIdAndUserIdRequest;
-import com.game.liar.domain.request.RoomIdRequest;
-import com.game.liar.domain.request.RoomInfoRequest;
-import com.game.liar.domain.response.RoomInfoResponseDto;
+import com.game.liar.dto.request.RoomIdAndUserIdRequest;
+import com.game.liar.dto.request.RoomIdRequest;
+import com.game.liar.dto.request.RoomInfoRequest;
+import com.game.liar.dto.response.RoomInfoResponseDto;
 import com.game.liar.exception.MaxCountException;
 import com.game.liar.exception.NotExistException;
 import com.game.liar.repository.RoomRepository;

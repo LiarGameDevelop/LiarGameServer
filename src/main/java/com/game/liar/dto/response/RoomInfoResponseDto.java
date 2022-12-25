@@ -1,4 +1,4 @@
-package com.game.liar.domain.response;
+package com.game.liar.dto.response;
 
 import com.game.liar.domain.User;
 import com.game.liar.domain.Room;

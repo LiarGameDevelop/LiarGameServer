@@ -1,9 +1,9 @@
 package com.game.liar.repository;
 
 import com.game.liar.domain.Room;
-import com.game.liar.domain.request.RoomIdAndUserIdRequest;
-import com.game.liar.domain.request.RoomIdRequest;
-import com.game.liar.domain.request.RoomInfoRequest;
+import com.game.liar.dto.request.RoomIdAndUserIdRequest;
+import com.game.liar.dto.request.RoomIdRequest;
+import com.game.liar.dto.request.RoomInfoRequest;
 import com.game.liar.exception.NotAllowedActionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

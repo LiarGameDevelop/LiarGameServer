@@ -1,4 +1,4 @@
-package com.game.liar.domain.request;
+package com.game.liar.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,9 +11,7 @@ import javax.validation.constraints.NotBlank;
 @Setter
 @AllArgsConstructor
 @ToString
-public class RoomIdAndUserIdRequest {
+public class RoomIdRequest {
     @NotBlank
     private String roomId;
-
-    private String userId;
 }
