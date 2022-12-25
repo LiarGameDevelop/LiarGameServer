@@ -31,10 +31,7 @@ import org.springframework.web.socket.sockjs.client.WebSocketTransport;
 import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 import static com.game.liar.domain.Global.*;
@@ -208,22 +205,21 @@ class GameControllerTest {
         //When
         String uuid = UUID.randomUUID().toString();
         __sendSelectLiar(uuid);
-        TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
-        StompSession.Subscription sub1 = stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler1);
-        TestSingleStompHandler<MessageContainer> handler2 = new TestSingleStompHandler<>(MessageContainer.class);
-        StompSession.Subscription sub2 = sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/private/%s", sessionInfoList.get(0).guestId), handler2);
+        TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
+        stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler1);
+        TestStompHandlerChain<MessageContainer> handler2 = new TestStompHandlerChain<>(MessageContainer.class);
+        sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/private/%s", sessionInfoList.get(0).guestId), handler2);
 
         //then
-        Thread.sleep(5000);
-        MessageContainer messageToOwner = handler1.getCompletableFuture().get(3, SECONDS);
+        Thread.sleep(1000);
+        MessageContainer messageToOwner = handler1.getCompletableFuture(0);
         MessageContainer expectMessageToOwner = MessageContainer.messageContainerBuilder()
                 .senderId("SERVER")
                 .message(new MessageContainer.Message(Global.NOTIFY_LIAR_SELECTED, objectMapper.writeValueAsString(new LiarResponse(false, GameState.OPEN_KEYWORD))))
                 .uuid(uuid)
                 .build();
 
-        Thread.sleep(5000);
-        MessageContainer messageToUser = handler2.getCompletableFuture().get(3, SECONDS);
+        MessageContainer messageToUser = handler2.getCompletableFuture(0);
         MessageContainer expectMessageToUser = MessageContainer.messageContainerBuilder()
                 .senderId("SERVER")
                 .message(new MessageContainer.Message(Global.NOTIFY_LIAR_SELECTED, objectMapper.writeValueAsString(new LiarResponse(true, GameState.OPEN_KEYWORD))))
@@ -245,9 +241,6 @@ class GameControllerTest {
             assertThat(messageToOwner.getMessage().getBody()).contains(objectMapper.writeValueAsString(new LiarResponse(false, GameState.OPEN_KEYWORD)));
             assertThat(messageToUser.getMessage().getBody()).contains(objectMapper.writeValueAsString(new LiarResponse(true, GameState.OPEN_KEYWORD)));
         }
-
-        sub1.unsubscribe();
-        sub2.unsubscribe();
     }
 
     private void __sendSelectLiar(String uuid) {
@@ -273,24 +266,23 @@ class GameControllerTest {
         String uuid = UUID.randomUUID().toString();
         __SendOpenKeyword(uuid);
 
-        TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
-        TestStompHandlerChain<MessageContainer> handler2 = new TestStompHandlerChain<>(MessageContainer.class);
-        StompSession.Subscription sub1 = stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler1);
-        StompSession.Subscription sub2 = sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/private/%s", sessionInfoList.get(0).guestId), handler2);
+        TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+        TestSingleStompHandler<MessageContainer> handler2 = new TestSingleStompHandler<>(MessageContainer.class);
+        stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler1);
+        sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/private/%s", sessionInfoList.get(0).guestId), handler2);
 
         TestSingleStompHandler<MessageContainer> handler3 = new TestSingleStompHandler<>(MessageContainer.class);
         TestSingleStompHandler<MessageContainer> handler4 = new TestSingleStompHandler<>(MessageContainer.class);
-        StompSession.Subscription sub3 = stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler3);
-        StompSession.Subscription sub4 = sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler4);
+        stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler3);
+        sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler4);
 
-        Thread.sleep(1500);
-        MessageContainer messageToOwner = handler1.getCompletableFuture(0);
+        MessageContainer messageToOwner = handler1.getCompletableFuture().get(5, SECONDS);
         MessageContainer expectMessageToOwner = MessageContainer.messageContainerBuilder()
                 .senderId("SERVER")
                 .message(new MessageContainer.Message(Global.NOTIFY_KEYWORD_OPENED, "{}"))
                 .uuid(uuid)
                 .build();
-        MessageContainer messageToUser = handler2.getCompletableFuture(0);
+        MessageContainer messageToUser = handler2.getCompletableFuture().get(5, SECONDS);;
 
         //Then
         OpenedGameInfo gameInfoResultFromOwner = objectMapper.readValue(messageToOwner.getMessage().getBody(), OpenedGameInfo.class);
@@ -325,11 +317,6 @@ class GameControllerTest {
         assertThat(message2.getMessage().getMethod()).isEqualTo(Global.NOTIFY_TURN);
         assertThat(publicMessageToOwner.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(0));
         assertThat(publicMessageToUser.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(0));
-
-        sub1.unsubscribe();
-        sub2.unsubscribe();
-        sub3.unsubscribe();
-        sub4.unsubscribe();
         return gameInfoResultFromOwner;
     }
 
@@ -358,8 +345,8 @@ class GameControllerTest {
 
         TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
         TestSingleStompHandler<MessageContainer> handler2 = new TestSingleStompHandler<>(MessageContainer.class);
-        StompSession.Subscription sub1 = stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
-        StompSession.Subscription sub2 = sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler2);
+        stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
+        sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler2);
 
         Thread.sleep(1000);
         //Then
@@ -371,9 +358,6 @@ class GameControllerTest {
         assertThat(message2.getMessage().getMethod()).isEqualTo(Global.NOTIFY_TURN);
         assertThat(publicMessageToOwner.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(1));
         assertThat(publicMessageToUser.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(1));
-
-        sub1.unsubscribe();
-        sub2.unsubscribe();
     }
 
     @Test
@@ -386,7 +370,7 @@ class GameControllerTest {
         TestStompHandlerChain<MessageContainer> handler2 = new TestStompHandlerChain<>(MessageContainer.class);
         stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
         sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler2);
-        Thread.sleep(5000);
+        Thread.sleep(4500);
 
         //Then
         MessageContainer message1 = handler1.getCompletableFuture(0);
@@ -983,17 +967,21 @@ class GameControllerTest {
     }
 
     private static class TestStompHandlerChain<T> implements StompFrameHandler {
-        public final Queue<CompletableFuture<T>> completableFuture = new ConcurrentLinkedQueue<>();
+        //public final Queue<CompletableFuture<T>> completableFuture = new ConcurrentLinkedQueue<>();
+        public final LinkedBlockingQueue<CompletableFuture<T>> completableFuture = new LinkedBlockingQueue<>();
 
         private CompletableFuture<T> __getCompletableFuture() {
             System.out.println(LocalDateTime.now() + ":[TestStompHandlerChain] getCompletableFuture size:" + completableFuture.size());
-            return completableFuture.peek();
+            try {
+                return completableFuture.take();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         public T getCompletableFuture(int index) {
             try {
                 T ret = __getCompletableFuture().get(5, SECONDS);
-                completableFuture.remove();
                 return ret;
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 throw new RuntimeException(e);
@@ -1018,7 +1006,7 @@ class GameControllerTest {
             synchronized (this) {
                 CompletableFuture<T> future = new CompletableFuture<>();
                 future.complete((T) payload);
-                completableFuture.add(future);
+                completableFuture.offer(future);
                 System.out.println(LocalDateTime.now() + ":[TestStompHandlerChain] handleFrame headers: " + headers + ", payload: " + payload + ", completableFuture.size() :" + completableFuture.size());
             }
         }

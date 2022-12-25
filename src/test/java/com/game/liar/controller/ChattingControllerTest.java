@@ -3,9 +3,11 @@ package com.game.liar.controller;
 import com.game.liar.domain.Global;
 import com.game.liar.dto.ChatMessageDto;
 import com.game.liar.repository.ChatRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
@@ -13,6 +15,7 @@ import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
+import org.springframework.test.annotation.Rollback;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
@@ -51,9 +54,13 @@ class ChattingControllerTest {
         assertThat(stompSession).isNotNull();
     }
 
+    @AfterEach
+    void clear(){
+        chatRepository.deleteAll();
+    }
+
     @Test
-    @Transactional
-    public void 채팅서비스() throws Exception {
+    public void 채팅채널에_메세지를보내면_메세지를받고_db에저장된다() throws Exception {
         //given
         PrivateStompHandler<ChatMessageDto> handler = new PrivateStompHandler<>(ChatMessageDto.class);
         stompSession.subscribe("/subscribe/room/12345/chat", handler);

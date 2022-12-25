@@ -16,9 +16,6 @@ jasypt:
   encryptor:
     bean: jasyptStringEncryptor
 
-SERVER_IP: "127.0.0.1"
-#SERVER_IP= "13.125.250.0"
-
 chat:
   destinations:
     login: "/subscribe/room.login/"
