@@ -1,5 +1,6 @@
-package com.game.liar.dto.request;
+package com.game.liar.dto;
 
+import com.game.liar.dto.response.GameStateResponse;
 import lombok.*;
 
 import javax.validation.constraints.NotBlank;
@@ -30,7 +31,7 @@ public class MessageContainer {
         @NotBlank
         String method;
         @NotBlank
-        String body;
+        MessageBody body;
 
         @Override
         public String toString() {

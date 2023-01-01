@@ -1,13 +1,13 @@
 package com.game.liar.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.game.liar.domain.GameState;
 import com.game.liar.domain.Global;
 import com.game.liar.domain.User;
+import com.game.liar.dto.MessageContainer;
+import com.game.liar.dto.request.GameSettingsRequest;
 import com.game.liar.dto.request.KeywordRequest;
 import com.game.liar.dto.request.LiarDesignateRequest;
-import com.game.liar.dto.request.MessageContainer;
 import com.game.liar.dto.request.RoomIdRequest;
 import com.game.liar.dto.response.*;
 import com.game.liar.exception.NotAllowedActionException;
@@ -61,30 +61,26 @@ public class GameService {
         if (gameInfo.getState() != GameState.BEFORE_START)
             throw new StateNotAllowedExpcetion("Game is not initialized");
 
-        try {
-            log.info("request.getMessage().getBody(): {}", request.getMessage().getBody());
-            GameInfo.GameSettings settings = objectMapper.readValue(request.getMessage().getBody(), GameInfo.GameSettings.class);
-            if (settings.getRound() == null || settings.getTurn() == null || settings.getCategory() == null) {
-                throw new NullPointerException("Required parameters does exist");
-            }
-            if (settings.getRound() <= 0 || settings.getRound() >= 6) {
-                throw new NotAllowedActionException("Round can be 1 to 5");
-            }
-            if (settings.getTurn() <= 0 || settings.getTurn() >= 4) {
-                throw new NotAllowedActionException("Turn can be 1 to 3");
-            }
-            if (settings.getCategory().isEmpty()) {
-                throw new NotAllowedActionException("Category should contain more than 1");
-            }
-            log.info("request OK, settings : {}", settings);
-            gameInfo.setGameSettings(settings);
-            gameInfo.nextState();
-            gameInfo.initialize();
-            log.info("Result gameinfo : {}", gameInfo);
-            return gameInfo;
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+        log.info("request.getMessage().getBody(): {}", request.getMessage().getBody());
+        GameSettingsRequest settings = (GameSettingsRequest) request.getMessage().getBody();
+        if (settings.getRound() == null || settings.getTurn() == null || settings.getCategory() == null) {
+            throw new NullPointerException("Required parameters does exist");
         }
+        if (settings.getRound() <= 0 || settings.getRound() >= 6) {
+            throw new NotAllowedActionException("Round can be 1 to 5");
+        }
+        if (settings.getTurn() <= 0 || settings.getTurn() >= 4) {
+            throw new NotAllowedActionException("Turn can be 1 to 3");
+        }
+        if (settings.getCategory().isEmpty()) {
+            throw new NotAllowedActionException("Category should contain more than 1");
+        }
+        log.info("request OK, settings : {}", settings);
+        gameInfo.setGameSettings(settings.toEntity());
+        gameInfo.nextState();
+        gameInfo.initialize();
+        log.info("Result gameinfo : {}", gameInfo);
+        return gameInfo;
     }
 
     public GameInfo addGame(@NotNull String roomId, @NotNull String roomOwnerId) {
@@ -152,7 +148,7 @@ public class GameService {
     }
 
     private String __selectLiar(List<String> usersInRoom, String roomId) {
-        Random random = new Random(); // 랜덤 객체 생성
+        Random random = new Random();
         random.setSeed(System.currentTimeMillis() + UUID.fromString(roomId).hashCode());
         int index = random.nextInt(usersInRoom.size());
 
@@ -263,17 +259,13 @@ public class GameService {
             if (gameInfo.checkVoteCompleted(senderId)) {
                 throw new NotAllowedActionException("Vote finished");
             }
-            try {
-                LiarDesignateRequest liarDesignate = objectMapper.readValue(request.getMessage().getBody(), LiarDesignateRequest.class);
-                if (liarDesignate.getLiar().equals("")) {
-                    log.debug("vote timeout from room id : {}, GameInfo: {}", roomId, gameInfo);
-                } else if (!gameInfo.isUserInTheRoom(liarDesignate.getLiar())) {
-                    throw new NotExistException("Designated user does not exist");
-                }
-                gameInfo.addVoteResult(senderId, liarDesignate.getLiar());
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
+            LiarDesignateRequest liarDesignate = (LiarDesignateRequest) request.getMessage().getBody();
+            if (liarDesignate.getLiar().equals("")) {
+                log.debug("vote timeout from room id : {}, GameInfo: {}", roomId, gameInfo);
+            } else if (!gameInfo.isUserInTheRoom(liarDesignate.getLiar())) {
+                throw new NotExistException("Designated user does not exist");
             }
+            gameInfo.addVoteResult(senderId, liarDesignate.getLiar());
             return gameInfo;
         }
     }
@@ -298,7 +290,7 @@ public class GameService {
         }
         gameInfo.nextState();
         boolean isAnswer = gameInfo.getMostVoted().get(0).getKey().equals(gameInfo.getLiarId());
-        return new OpenLiarResponse(gameInfo.getLiarId(), gameInfo.getState(), isAnswer);
+        return new OpenLiarResponse(gameInfo.getLiarId(), isAnswer, gameInfo.getState());
     }
 
     public LiarAnswerResponse checkKeywordCorrect(MessageContainer request, String roomId) {
@@ -310,17 +302,13 @@ public class GameService {
         if (!senderId.equals(gameInfo.getLiarId())) {
             throw new NotAllowedActionException("Only liar can request to check keyword is right");
         }
-        try {
-            KeywordRequest keywordRequest = objectMapper.readValue(request.getMessage().getBody(), KeywordRequest.class);
-            gameInfo.nextState();
-            gameInfo.setLiarAnswer(gameInfo.getCurrentRoundKeyword().equals(keywordRequest.getKeyword()));
-            return new LiarAnswerResponse(gameInfo.isLiarAnswer(), gameInfo.getState());
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        KeywordRequest keywordRequest = (KeywordRequest) request.getMessage().getBody();
+        gameInfo.nextState();
+        gameInfo.setLiarAnswer(gameInfo.getCurrentRoundKeyword().equals(keywordRequest.getKeyword()));
+        return new LiarAnswerResponse(gameInfo.getState(), gameInfo.isLiarAnswer());
     }
 
-    public ScoreBoardResponse notifyScores(MessageContainer request, String roomId) {
+    public ScoreboardResponse notifyScores(MessageContainer request, String roomId) {
         GameInfo gameInfo = gameManagerMap.get(roomId);
         String senderId = request.getSenderId();
         if (gameInfo.getState() != GameState.PUBLISH_SCORE) {
@@ -330,7 +318,7 @@ public class GameService {
             throw new NotAllowedActionException("Only Room owner can query user scores");
         }
         gameInfo.updateScoreBoard();
-        return new ScoreBoardResponse(gameInfo.getScoreBoard());
+        return new ScoreboardResponse(gameInfo.getScoreboard());
     }
 
     public GameInfo notifyRoundEnd(String roomId) {
@@ -349,7 +337,7 @@ public class GameService {
         gameInfo.resetLiarInfo();
     }
 
-    public Rankings publishRankings(MessageContainer request, String roomId) {
+    public RankingsResponse publishRankings(MessageContainer request, String roomId) {
         GameInfo gameInfo = gameManagerMap.get(roomId);
         String senderId = request.getSenderId();
         if (gameInfo.getState() != GameState.PUBLISH_RANKINGS)
@@ -358,11 +346,10 @@ public class GameService {
             throw new NotAllowedActionException("Only Room owner can query publish rankings");
         }
         //{"rankings":[{"id":"id1","score":12},{"id":"id2","score":11}]}
-        Rankings rankings = new Rankings(gameInfo.getScoreBoard().entrySet().stream().sorted(Map.Entry.comparingByValue((entry1, entry2) -> entry2.compareTo(entry1)))
-                .map(entry -> new Rankings.RankingInfo(entry.getKey(), entry.getValue()))
+        return new RankingsResponse(gameInfo.getScoreboard().entrySet().stream()
+                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                .map(entry -> new RankingsResponse.RankingInfo(entry.getKey(), entry.getValue()))
                 .collect(Collectors.toList()));
-
-        return rankings;
     }
 
     public List<String> getNotVoteUserList(String roomId) {
@@ -377,13 +364,15 @@ public class GameService {
         return notVoteUserList;
     }
 
-    public void cancelTurnTimer(String roomId){
+    public void cancelTurnTimer(String roomId) {
         gameManagerMap.get(roomId).cancelTurnTimer();
     }
-    public void cancelVoteTimer(String roomId){
+
+    public void cancelVoteTimer(String roomId) {
         gameManagerMap.get(roomId).cancelVoteTimer();
     }
-    public void cancelAnswerTimer(String roomId){
+
+    public void cancelAnswerTimer(String roomId) {
         gameManagerMap.get(roomId).cancelAnswerTimer();
     }
 

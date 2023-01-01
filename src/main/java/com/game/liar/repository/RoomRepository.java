@@ -2,7 +2,7 @@ package com.game.liar.repository;
 
 import com.game.liar.domain.User;
 import com.game.liar.domain.Room;
-import com.game.liar.dto.request.RoomIdAndUserIdRequest;
+import com.game.liar.dto.request.RoomIdUserIdRequest;
 import com.game.liar.dto.request.RoomIdRequest;
 import com.game.liar.dto.request.RoomInfoRequest;
 import com.game.liar.exception.AlreadyExistException;
@@ -90,7 +90,7 @@ public class RoomRepository {
         return roomMap.getOrDefault(roomId, null);
     }
 
-    public Room addRoomMember(RoomIdAndUserIdRequest request) throws MaxCountException {
+    public Room addRoomMember(RoomIdUserIdRequest request) throws MaxCountException {
         Room room = getRoom(request.getRoomId());
         String userId = makeUniqueUserId();
         if (room == null)
@@ -99,7 +99,7 @@ public class RoomRepository {
         return room;
     }
 
-    public Room leaveRoomMember(RoomIdAndUserIdRequest request) {
+    public Room leaveRoomMember(RoomIdUserIdRequest request) {
         Room room = getRoom(request.getRoomId());
         if (room == null)
             throw new NotExistException("Requested Room does not exist");
@@ -107,7 +107,7 @@ public class RoomRepository {
         return room;
     }
 
-    public Room deleteRoom(RoomIdAndUserIdRequest request) {
+    public Room deleteRoom(RoomIdUserIdRequest request) {
         if (roomMap.containsKey(request.getRoomId())) {
             String roomOwnerId = roomMap.get(request.getRoomId()).getOwnerId();
             if (request.getUserId().equals(roomOwnerId)) {

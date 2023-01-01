@@ -1,19 +1,21 @@
 package com.game.liar.dto.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.game.liar.dto.MessageBody;
+import lombok.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 @NoArgsConstructor
 @Getter
-@Builder
+@EqualsAndHashCode(callSuper = false)
 @AllArgsConstructor
-public class VoteResult {
+@ToString
+@JsonDeserialize
+@Builder
+public class VoteResult extends MessageBody {
     Map<String,String> voteResult;
     List<Map.Entry<String,Long>> mostVoted;
 }

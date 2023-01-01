@@ -2,11 +2,11 @@ package com.game.liar.dto.response;
 
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.game.liar.domain.GameState;
 import com.game.liar.dto.MessageBody;
 import lombok.*;
 
-import java.util.List;
+import java.util.Map;
+
 
 @NoArgsConstructor
 @Getter
@@ -15,8 +15,7 @@ import java.util.List;
 @ToString
 @JsonDeserialize
 @Builder
-public class OpenedGameInfo extends MessageBody {
-    String category;
-    String keyword;
-    List<String> turnOrder;
+public class ScoreboardResponse extends MessageBody {
+    Map<String,Integer> scoreboard;
+
 }

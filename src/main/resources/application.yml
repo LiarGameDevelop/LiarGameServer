@@ -7,12 +7,12 @@ spring:
     #url: jdbc:mysql://127:0:0:1:3306/Schema?useSSL=false&useUnicode=true&serverTimezone=Asia/Seoul
     #username: liar_game_test
     #password: liar
-    url: ENC(k+YNQnfgXLUX1PDk9YMdGz7C9F3JjxpWffepOzubWOE5Su8V7NHJcB5/3KcAxcUOBkGFEQZ28NWO5NQGq8yMUVx+Pjq8WIJFU2YGDrkV028X4G7nOnAoi7nLzDyFE8ABwrD+ZJb0fTN/qNRJ25ZVsw==)
-    username: ENC(8XqLpLAUgoDfIOwT1C83NA==)
-    password: ENC(skmX3ubPYfiGoL9F+C9m+fdjDXcZ4rOt)
-#    url: jdbc:mysql://liargame-develop-rds.cybbdecoc9b0.ap-northeast-2.rds.amazonaws.com/liargame
-#    username: admin
-#    password: liargamedevelop
+#    url: ENC(k+YNQnfgXLUX1PDk9YMdGz7C9F3JjxpWffepOzubWOE5Su8V7NHJcB5/3KcAxcUOBkGFEQZ28NWO5NQGq8yMUVx+Pjq8WIJFU2YGDrkV028X4G7nOnAoi7nLzDyFE8ABwrD+ZJb0fTN/qNRJ25ZVsw==)
+#    username: ENC(8XqLpLAUgoDfIOwT1C83NA==)
+#    password: ENC(skmX3ubPYfiGoL9F+C9m+fdjDXcZ4rOt)
+    url: jdbc:mysql://liargame-develop-rds.cybbdecoc9b0.ap-northeast-2.rds.amazonaws.com/liargame
+    username: admin
+    password: liargamedevelop
   jpa:
     show-sql: true
     hibernate:

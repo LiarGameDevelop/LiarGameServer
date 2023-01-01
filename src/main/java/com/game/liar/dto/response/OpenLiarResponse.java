@@ -1,17 +1,21 @@
 package com.game.liar.dto.response;
 
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.game.liar.domain.GameState;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import com.game.liar.dto.MessageBody;
+import lombok.*;
 
-@AllArgsConstructor
 @NoArgsConstructor
 @Getter
+@EqualsAndHashCode(callSuper = false)
+@AllArgsConstructor
+@ToString
+@JsonDeserialize
 @Builder
-public class OpenLiarResponse {
+public class OpenLiarResponse extends MessageBody {
     String liar;
-    GameState state;
     boolean matchLiar;
+    GameState state;
+
 }

@@ -7,10 +7,11 @@ import com.game.liar.domain.GameState;
 import com.game.liar.domain.Global;
 import com.game.liar.domain.Room;
 import com.game.liar.domain.User;
+import com.game.liar.dto.MessageContainer;
 import com.game.liar.dto.request.*;
 import com.game.liar.dto.response.OpenLiarResponse;
-import com.game.liar.dto.response.Rankings;
-import com.game.liar.dto.response.ScoreBoardResponse;
+import com.game.liar.dto.response.RankingsResponse;
+import com.game.liar.dto.response.ScoreboardResponse;
 import com.game.liar.exception.MaxCountException;
 import com.game.liar.exception.NotAllowedActionException;
 import com.game.liar.exception.StateNotAllowedExpcetion;
@@ -43,7 +44,7 @@ class GameServiceTest {
     }
 
     private String __addRoomMember(String roomId, String name) throws MaxCountException {
-        Room room = roomRepository.addRoomMember(new RoomIdAndUserIdRequest(roomId, name));
+        Room room = roomRepository.addRoomMember(new RoomIdUserIdRequest(roomId, name));
         String userId = room.getUserList().stream().filter(user -> user.getUsername().equals(name)).findFirst().get().getUserId();
         String username = room.getUserList().stream().filter(user -> user.getUsername().equals(name)).findFirst().get().getUsername();
         gameService.addMember(room.getRoomId(), new User(username, userId));
@@ -66,14 +67,13 @@ class GameServiceTest {
         //Given
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
 
-
         //When
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food"))
-                .build());
-        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .build();
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", request))
                 .senderId("tester1")
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -101,12 +101,12 @@ class GameServiceTest {
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
 
         //When
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(8)
                 .turn(2)
                 .category(Arrays.asList("food"))
-                .build());
-        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .build();
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", request))
                 .senderId("tester1")
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -123,12 +123,12 @@ class GameServiceTest {
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
 
         //When
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(3)
+        GameSettingsRequest request=GameSettingsRequest.builder()
+                .round(5)
                 .turn(5)
                 .category(Arrays.asList("food"))
-                .build());
-        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .build();
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", request))
                 .senderId("tester1")
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -145,11 +145,11 @@ class GameServiceTest {
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
 
         //When
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .turn(5)
-                .category(Arrays.asList("food", "sports"))
-                .build());
-        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+        GameSettingsRequest request=GameSettingsRequest.builder()
+                .turn(2)
+                .category(Arrays.asList("food"))
+                .build();
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", request))
                 .senderId("tester1")
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -166,12 +166,12 @@ class GameServiceTest {
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
 
         //When
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food"))
-                .build());
-        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+                .build();
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", request))
                 .senderId("tester2")
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -187,12 +187,12 @@ class GameServiceTest {
     public void 라운드시작() throws Exception {
         //Given
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food"))
-                .build());
-        __startGame("tester1", "room1", gameInfo);
+                .build();
+        __startGame("tester1", "room1", request);
         MessageContainer messageContainer;
 
         //when
@@ -210,12 +210,12 @@ class GameServiceTest {
         GameInfo gameInfo = gameService.addGame("room1", "tester1");
         int round=5;
         MessageContainer messageContainer;
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(round)
                 .turn(2)
                 .category(Arrays.asList("food"))
-                .build());
-        __startGame("tester1", "room1", gameInfo);
+                .build();
+        __startGame("tester1", "room1", request);
         __startRound("tester1", "room1");
 
         //when
@@ -239,14 +239,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         GameInfo gameInfo = gameService.getGame(roomId);
         String guestId = __addRoomMember(roomId, "tester2");
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food"))
-                .build());
-        __startGame(roomOwnerId, roomId, gameInfo);
-        MessageContainer messageContainer;
+        
+        __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         //when
@@ -267,8 +261,21 @@ class GameServiceTest {
         gameService.startRound(messageContainer, roomId);
     }
 
-    private void __startGame(String roomOwnerId, String roomId, GameInfo gameInfo) throws JsonProcessingException {
-        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", objectMapper.writeValueAsString(gameInfo.getGameSettings())))
+    private void __startGame(String roomOwnerId, String roomId, GameSettingsRequest gameSettings) throws JsonProcessingException {
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", gameSettings))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.startGame(messageContainer, roomId);
+    }
+
+    private void __startGame(String roomOwnerId, String roomId) throws JsonProcessingException {
+        GameSettingsRequest request=GameSettingsRequest.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food"))
+                .build();
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", request))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -283,13 +290,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         GameInfo gameInfo = gameService.getGame(roomId);
         String guestId = __addRoomMember(roomId, "tester2");
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food"))
-                .build());
-        __startGame(roomOwnerId, roomId, gameInfo);
+        
+        __startGame(roomOwnerId, roomId);
         MessageContainer messageContainer;
         __startRound(roomOwnerId, roomId);
 
@@ -314,13 +316,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food"))
-                .build());
-        __startGame(roomOwnerId, roomId, gameInfo);
+        
+        __startGame(roomOwnerId, roomId);
         MessageContainer messageContainer;
         __startRound(roomOwnerId, roomId);
 
@@ -346,17 +343,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_GAME, objectMapper.writeValueAsString(gameInfo.getGameSettings())))
-                .senderId(roomOwnerId)
-                .uuid(UUID.randomUUID().toString())
-                .build();
-        gameService.startGame(messageContainer, roomId);
+        
+        __startGame(roomOwnerId,roomId);
         __startRound(roomOwnerId, roomId);
 
         //when
@@ -394,14 +382,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+        
+        __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         //when
@@ -425,14 +407,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-
-        __startGame(roomOwnerId, roomId, gameInfo);
+        
+        __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         gameService.nextGameState(roomId); //after: OPEN_KEYWORD
@@ -453,14 +429,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+        
+        __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         //when
@@ -483,14 +453,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+        
+        __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         //when
@@ -518,14 +482,9 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
+        
         MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+        __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         gameService.nextGameState(roomId); //after: OPEN_KEYWORD
@@ -533,12 +492,12 @@ class GameServiceTest {
 
         //when
         gameService.nextGameState(roomId); //after: VOTE_LIAR
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(guestId)))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
         gameService.voteLiar(messageContainer, roomId);
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(guestId)))
                 .senderId(guestId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -557,14 +516,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+        
+        __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         gameService.nextGameState(roomId); //after: OPEN_KEYWORD
@@ -572,12 +525,12 @@ class GameServiceTest {
 
         //when
         gameService.nextGameState(roomId); //after: VOTE_LIAR
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(guestId)))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
         gameService.voteLiar(messageContainer, roomId);
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(roomOwnerId))))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(roomOwnerId)))
                 .senderId(guestId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -596,14 +549,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+        
+        __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         gameService.nextGameState(roomId); //after: OPEN_KEYWORD
@@ -617,7 +564,7 @@ class GameServiceTest {
         //Then
         assertThrows(StateNotAllowedExpcetion.class, () -> {
             gameService.voteLiar(MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR,
-                            objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+                            new LiarDesignateRequest(guestId)))
                     .senderId(roomOwnerId)
                     .uuid(UUID.randomUUID().toString())
                     .build(), roomId);
@@ -632,14 +579,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+        
+        __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         gameService.nextGameState(roomId); //after: OPEN_KEYWORD
@@ -647,7 +588,7 @@ class GameServiceTest {
 
         //when
         gameService.nextGameState(roomId); //after: VOTE_LIAR
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(guestId)))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -656,7 +597,7 @@ class GameServiceTest {
         //Then
         assertThrows(NotAllowedActionException.class, () -> {
             gameService.voteLiar(MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR,
-                            objectMapper.writeValueAsString(new LiarDesignateRequest(roomOwnerId))))
+                            new LiarDesignateRequest(roomOwnerId)))
                     .senderId(roomOwnerId)
                     .uuid(UUID.randomUUID().toString())
                     .build(), roomId);
@@ -671,26 +612,20 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+        
+        __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         __selectLiar(roomOwnerId, roomId);
 
         gameService.nextGameState(roomId); //after: IN_PROGRESS
         gameService.nextGameState(roomId); //after: VOTE_LIAR
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(guestId)))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
         gameService.voteLiar(messageContainer, roomId);
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(guestId))))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(guestId)))
                 .senderId(guestId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -698,7 +633,7 @@ class GameServiceTest {
         gameService.nextGameState(roomId);
 
         //when
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, null))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -727,14 +662,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+        
+        __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         __selectLiar(roomOwnerId, roomId);
@@ -747,7 +676,7 @@ class GameServiceTest {
         gameService.nextGameState(roomId);
 
         //when, then
-        assertThrows(NotAllowedActionException.class, () -> gameService.openLiar(MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+        assertThrows(NotAllowedActionException.class, () -> gameService.openLiar(MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, null))
                 .senderId(guestId)
                 .uuid(UUID.randomUUID().toString())
                 .build(), roomId));
@@ -755,7 +684,7 @@ class GameServiceTest {
 
     private void __voteLiar(String roomId, String senderId, String designatedId) throws JsonProcessingException {
         MessageContainer messageContainer;
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, objectMapper.writeValueAsString(new LiarDesignateRequest(designatedId))))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(designatedId)))
                 .senderId(senderId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -770,14 +699,8 @@ class GameServiceTest {
         String roomId = room.getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
-
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
-                .round(5)
-                .turn(2)
-                .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-
-        __startGame(roomOwnerId, roomId, gameInfo);
+        
+        __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
         __selectLiar(roomOwnerId, roomId);
 
@@ -791,7 +714,7 @@ class GameServiceTest {
         gameService.nextGameState(roomId);
 
         //when, then
-        assertThrows(StateNotAllowedExpcetion.class, () -> gameService.openLiar(MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+        assertThrows(StateNotAllowedExpcetion.class, () -> gameService.openLiar(MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, null))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build(), roomId));
@@ -806,13 +729,13 @@ class GameServiceTest {
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
+                .build();
         MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+        __startGame(roomOwnerId, roomId, request);
         __startRound(roomOwnerId, roomId);
 
         __selectLiar(roomOwnerId, roomId);
@@ -827,7 +750,7 @@ class GameServiceTest {
         //when
         String liarId = gameInfo.getLiarId();
         messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
-                        objectMapper.writeValueAsString(new KeywordRequest(gameInfo.getCurrentRoundKeyword()))))
+                        new KeywordRequest(gameInfo.getCurrentRoundKeyword())))
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -855,13 +778,12 @@ class GameServiceTest {
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+                .build();
+        __startGame(roomOwnerId, roomId, request);
         __startRound(roomOwnerId, roomId);
         __selectLiar(roomOwnerId, roomId);
         __openKeyword(roomOwnerId, roomId);
@@ -872,8 +794,8 @@ class GameServiceTest {
         gameService.nextGameState(roomId);
         __openLiar(roomOwnerId, roomId);
         String liarId = gameInfo.getLiarId();
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
-                        objectMapper.writeValueAsString(new KeywordRequest())))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                        new KeywordRequest()))
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -892,13 +814,12 @@ class GameServiceTest {
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+                .build();
+        __startGame(roomOwnerId, roomId, request);
         __startRound(roomOwnerId, roomId);
 
         gameInfo.setLiar(guestId);
@@ -911,23 +832,23 @@ class GameServiceTest {
         gameService.nextGameState(roomId);
         __openLiar(roomOwnerId, roomId);
         String liarId = gameInfo.getLiarId();
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
-                        objectMapper.writeValueAsString(new KeywordRequest(gameInfo.getCurrentRoundKeyword()))))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                       new KeywordRequest(gameInfo.getCurrentRoundKeyword())))
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
 
         gameService.checkKeywordCorrect(messageContainer, roomId);
-        ScoreBoardResponse scoreBoardResponse = __getScores(roomOwnerId,roomId);
+        ScoreboardResponse scoreBoardResponse = __getScores(roomOwnerId,roomId);
 
         //then
-        ScoreBoardResponse expectedScores = ScoreBoardResponse.builder()
-                .scoreBoard(new HashMap<String, Integer>() {{
+        ScoreboardResponse expectedScores = ScoreboardResponse.builder()
+                .scoreboard(new HashMap<String, Integer>() {{
                     put(roomOwnerId, 1);
                     put(guestId, 1);
                 }})
                 .build();
-        assertThat(scoreBoardResponse.getScoreBoard()).isEqualTo(expectedScores.getScoreBoard());
+        assertThat(scoreBoardResponse.getScoreboard()).isEqualTo(expectedScores.getScoreboard());
     }
 
     @Test
@@ -939,13 +860,12 @@ class GameServiceTest {
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+                .build();
+        __startGame(roomOwnerId, roomId, request);
         __startRound(roomOwnerId, roomId);
 
         gameInfo.setLiar(guestId);
@@ -958,22 +878,22 @@ class GameServiceTest {
         gameService.nextGameState(roomId);
         __openLiar(roomOwnerId, roomId);
         String liarId = gameInfo.getLiarId();
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
-                        objectMapper.writeValueAsString(new KeywordRequest(""))))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                        new KeywordRequest("")))
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
         gameService.checkKeywordCorrect(messageContainer, roomId);
-        ScoreBoardResponse scoreBoardResponse = __getScores(roomOwnerId,roomId);
+        ScoreboardResponse scoreBoardResponse = __getScores(roomOwnerId,roomId);
 
         //then
-        ScoreBoardResponse expectedScores = ScoreBoardResponse.builder()
-                .scoreBoard(new HashMap<String, Integer>() {{
+        ScoreboardResponse expectedScores = ScoreboardResponse.builder()
+                .scoreboard(new HashMap<String, Integer>() {{
                     put(roomOwnerId, 1);
                     put(guestId, 0);
                 }})
                 .build();
-        assertThat(scoreBoardResponse.getScoreBoard()).isEqualTo(expectedScores.getScoreBoard());
+        assertThat(scoreBoardResponse.getScoreboard()).isEqualTo(expectedScores.getScoreboard());
     }
 
     @Test
@@ -985,13 +905,12 @@ class GameServiceTest {
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+                .build();
+        __startGame(roomOwnerId, roomId, request);
         __startRound(roomOwnerId, roomId);
 
         gameInfo.setLiar(guestId);
@@ -1004,22 +923,22 @@ class GameServiceTest {
         gameService.nextGameState(roomId);
         __openLiar(roomOwnerId, roomId);
         String liarId = gameInfo.getLiarId();
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
-                        objectMapper.writeValueAsString(new KeywordRequest(gameInfo.getCurrentRoundKeyword()))))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                        new KeywordRequest(gameInfo.getCurrentRoundKeyword())))
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
         gameService.checkKeywordCorrect(messageContainer, roomId);
-        ScoreBoardResponse scoreBoardResponse = __getScores(roomOwnerId,roomId);
+        ScoreboardResponse scoreBoardResponse = __getScores(roomOwnerId,roomId);
 
         //then
-        ScoreBoardResponse expectedScores = ScoreBoardResponse.builder()
-                .scoreBoard(new HashMap<String, Integer>() {{
+        ScoreboardResponse expectedScores = ScoreboardResponse.builder()
+                .scoreboard(new HashMap<String, Integer>() {{
                     put(roomOwnerId, 0);
                     put(guestId, 3);
                 }})
                 .build();
-        assertThat(scoreBoardResponse.getScoreBoard()).isEqualTo(expectedScores.getScoreBoard());
+        assertThat(scoreBoardResponse.getScoreboard()).isEqualTo(expectedScores.getScoreboard());
     }
 
     @Test
@@ -1031,13 +950,12 @@ class GameServiceTest {
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+                .build();
+        __startGame(roomOwnerId, roomId, request);
         __startRound(roomOwnerId, roomId);
 
         gameInfo.setLiar(guestId);
@@ -1049,41 +967,41 @@ class GameServiceTest {
         gameService.nextGameState(roomId);
         __openLiar(roomOwnerId, roomId);
         String liarId = gameInfo.getLiarId();
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
-                        objectMapper.writeValueAsString(new KeywordRequest(""))))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                        (new KeywordRequest(""))))
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
         gameService.checkKeywordCorrect(messageContainer, roomId);
-        ScoreBoardResponse scoreBoardResponse = __getScores(roomOwnerId, roomId);
+        ScoreboardResponse scoreBoardResponse = __getScores(roomOwnerId, roomId);
 
         //then
-        ScoreBoardResponse expectedScores = ScoreBoardResponse.builder()
-                .scoreBoard(new HashMap<String, Integer>() {{
+        ScoreboardResponse expectedScores = ScoreboardResponse.builder()
+                .scoreboard(new HashMap<String, Integer>() {{
                     put(roomOwnerId, 0);
                     put(guestId, 2);
                 }})
                 .build();
-        assertThat(scoreBoardResponse.getScoreBoard()).isEqualTo(expectedScores.getScoreBoard());
+        assertThat(scoreBoardResponse.getScoreboard()).isEqualTo(expectedScores.getScoreboard());
     }
 
     private void __openLiar(String roomOwnerId, String roomId) {
         MessageContainer messageContainer;
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, "{}"))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_LIAR, null))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
         gameService.openLiar(messageContainer, roomId);
     }
 
-    private ScoreBoardResponse __getScores(String roomOwnerId, String roomId) {
+    private ScoreboardResponse __getScores(String roomOwnerId, String roomId) {
         MessageContainer messageContainer;
         messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_SCORES,
-                        "{}"))
+                        null))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
-        ScoreBoardResponse scoreBoardResponse = gameService.notifyScores(messageContainer, roomId);
+        ScoreboardResponse scoreBoardResponse = gameService.notifyScores(messageContainer, roomId);
         return scoreBoardResponse;
     }
 
@@ -1096,13 +1014,12 @@ class GameServiceTest {
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+                .build();
+        __startGame(roomOwnerId, roomId, request);
         __startRound(roomOwnerId, roomId);
 
         gameInfo.setLiar(guestId);
@@ -1115,14 +1032,14 @@ class GameServiceTest {
         //when
         __openLiar(roomOwnerId, roomId);
         String liarId = gameInfo.getLiarId();
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
-                        objectMapper.writeValueAsString(new KeywordRequest(""))))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                        (new KeywordRequest(""))))
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
         gameService.checkKeywordCorrect(messageContainer, roomId);
         messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_SCORES,
-                        "{}"))
+                        null))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -1142,13 +1059,12 @@ class GameServiceTest {
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+                .build();
+        __startGame(roomOwnerId, roomId, request);
 
         for(int i=0;i<5;++i) {
             //when
@@ -1164,14 +1080,14 @@ class GameServiceTest {
             gameService.nextGameState(roomId);
             __openLiar(roomOwnerId, roomId);
             String liarId = gameInfo.getLiarId();
-            messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
-                            objectMapper.writeValueAsString(new KeywordRequest(""))))
+            MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                            new KeywordRequest("")))
                     .senderId(liarId)
                     .uuid(UUID.randomUUID().toString())
                     .build();
             gameService.checkKeywordCorrect(messageContainer, roomId);
             messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_SCORES,
-                            "{}"))
+                            null))
                     .senderId(roomOwnerId)
                     .uuid(UUID.randomUUID().toString())
                     .build();
@@ -1192,13 +1108,12 @@ class GameServiceTest {
         String guestId = __addRoomMember(roomId, "tester2");
         GameInfo gameInfo = gameService.getGame(roomId);
 
-        gameInfo.setGameSettings(GameInfo.GameSettings.builder()
+        GameSettingsRequest request=GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
                 .category(Arrays.asList("food", "sports", "celebrity"))
-                .build());
-        MessageContainer messageContainer;
-        __startGame(roomOwnerId, roomId, gameInfo);
+                .build();
+        __startGame(roomOwnerId, roomId, request);
 
         for(int i=0;i<5;++i) {
             //when
@@ -1214,14 +1129,14 @@ class GameServiceTest {
             gameService.nextGameState(roomId);
             __openLiar(roomOwnerId, roomId);
             String liarId = gameInfo.getLiarId();
-            messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
-                            objectMapper.writeValueAsString(new KeywordRequest(""))))
+            MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.LIAR_ANSWER,
+                            new KeywordRequest("")))
                     .senderId(liarId)
                     .uuid(UUID.randomUUID().toString())
                     .build();
             gameService.checkKeywordCorrect(messageContainer, roomId);
             messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_SCORES,
-                            "{}"))
+                            null))
                     .senderId(roomOwnerId)
                     .uuid(UUID.randomUUID().toString())
                     .build();
@@ -1231,26 +1146,26 @@ class GameServiceTest {
         }
 
         //when
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.PUBLISH_RANKINGS,
-                        "{}"))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.PUBLISH_RANKINGS,
+                        null))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
-        Rankings result = gameService.publishRankings(messageContainer,roomId);
+        RankingsResponse result = gameService.publishRankings(messageContainer,roomId);
 
         //then
-        Integer roomOwnerScore = gameInfo.getScoreBoard().get(roomOwnerId);
-        Integer guestScore = gameInfo.getScoreBoard().get(guestId);
+        Integer roomOwnerScore = gameInfo.getScoreboard().get(roomOwnerId);
+        Integer guestScore = gameInfo.getScoreboard().get(guestId);
         if(roomOwnerScore>guestScore) {
-            assertThat(result).isEqualTo(new Rankings(Arrays.asList(
-                    new Rankings.RankingInfo(roomOwnerId, roomOwnerScore),
-                    new Rankings.RankingInfo(guestId, guestScore)
+            assertThat(result).isEqualTo(new RankingsResponse(Arrays.asList(
+                    new RankingsResponse.RankingInfo(roomOwnerId, roomOwnerScore),
+                    new RankingsResponse.RankingInfo(guestId, guestScore)
             )));
         }
         else{
-            assertThat(result).isEqualTo(new Rankings(Arrays.asList(
-                    new Rankings.RankingInfo(roomOwnerId, guestScore),
-                    new Rankings.RankingInfo(guestId, roomOwnerScore)
+            assertThat(result).isEqualTo(new RankingsResponse(Arrays.asList(
+                    new RankingsResponse.RankingInfo(roomOwnerId, guestScore),
+                    new RankingsResponse.RankingInfo(guestId, roomOwnerScore)
             )));
         }
         gameInfo.nextState();

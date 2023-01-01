@@ -12,7 +12,6 @@ import java.util.Map;
 @Component
 @ConfigurationProperties(prefix = "category")
 @Getter
-@Setter
 public class GameCategoryProperties {
     private final Map<String, List<String>> keywords = new HashMap<>();
 

@@ -1,9 +1,11 @@
 package com.game.liar.service;
 
 
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.game.liar.config.GameCategoryProperties;
 import com.game.liar.domain.GameState;
 import com.game.liar.domain.User;
+import com.game.liar.dto.MessageBody;
 import com.game.liar.utils.BeanUtils;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
@@ -76,7 +78,7 @@ public class GameInfo {
     private boolean liarAnswer;
 
     @Getter
-    private Map<String, Integer> scoreBoard = new ConcurrentHashMap<>();
+    private Map<String, Integer> scoreboard = new ConcurrentHashMap<>();
 
     public String getCurrentTurnId() {
         synchronized (this) {
@@ -114,12 +116,12 @@ public class GameInfo {
 
     public void addUser(User user) {
         userList.add(user);
-        scoreBoard.put(user.getUserId(), 0);
+        scoreboard.put(user.getUserId(), 0);
     }
 
     public void deleteUser(User user) {
         userList.remove(user);
-        scoreBoard.remove(user.getUserId());
+        scoreboard.remove(user.getUserId());
     }
 
     public boolean isUserInTheRoom(String userId) {
@@ -166,8 +168,11 @@ public class GameInfo {
     }
 
     public void addVoteResult(String from, String liarDesignatedId) {
+        log.info("user[{}] -> liar [{}]",from,liarDesignatedId);
         voteResult.put(from, liarDesignatedId);
+
         voteCount++;
+        log.info("myvoteResult :{}, voteCount = {}",voteResult,voteCount);
     }
 
     public boolean checkVoteCompleted(String from) {
@@ -180,7 +185,7 @@ public class GameInfo {
     }
 
     public void resetScoreBoard() {
-        for (Map.Entry<String, Integer> item : scoreBoard.entrySet()) {
+        for (Map.Entry<String, Integer> item : scoreboard.entrySet()) {
             item.setValue(0);
         }
     }
@@ -188,7 +193,7 @@ public class GameInfo {
     public void updateScoreBoard() {
         if (getMostVoted().get(0).getKey().equals(liarId)) {
             //시민들이 라이어를 맞췄으면 시민들의 점수를 더한다.
-            for (Map.Entry<String, Integer> item : scoreBoard.entrySet()) {
+            for (Map.Entry<String, Integer> item : scoreboard.entrySet()) {
                 if (!item.getKey().equals(liarId)) {
                     //TODO:make const score
                     item.setValue(item.getValue() + 1);
@@ -196,20 +201,20 @@ public class GameInfo {
             }
         } else {
             //시민들이 못맞췄으면 라이어의 점수를 더한다.
-            Integer score = scoreBoard.get(liarId);
-            scoreBoard.replace(liarId, score + 2);
+            Integer score = scoreboard.get(liarId);
+            scoreboard.replace(liarId, score + 2);
 
             //잘찍은 시민들은 점수를 더한다.
-            scoreBoard.entrySet().stream().filter(entry ->
+            scoreboard.entrySet().stream().filter(entry ->
                             !entry.getKey().equals(liarId) && getVoteResult().get(entry.getKey()).equals(liarId))
                     .forEach(item -> item.setValue(item.getValue() + 1));
         }
         if (isLiarAnswer()) {
             //이번턴에 라이어의 점수를 X점 더한다.
-            Integer score = scoreBoard.get(liarId);
-            scoreBoard.replace(liarId, score + 1);
+            Integer score = scoreboard.get(liarId);
+            scoreboard.replace(liarId, score + 1);
         }
-        log.info("scoreBoard : {}", scoreBoard);
+        log.info("scoreBoard : {}", scoreboard);
     }
 
     public synchronized boolean voteFinished() {
@@ -236,7 +241,8 @@ public class GameInfo {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    public static class GameSettings {
+    @JsonTypeName("gameSettings")
+    public static class GameSettings extends MessageBody {
         private Integer round;
         private Integer turn;
         private List<String> category;

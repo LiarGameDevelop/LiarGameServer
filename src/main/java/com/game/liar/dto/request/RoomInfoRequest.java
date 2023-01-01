@@ -9,7 +9,7 @@ import javax.validation.constraints.NotNull;
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
-public class RoomInfoRequest {
+public class RoomInfoRequest{
     @NotNull
     private Integer maxPersonCount;
     @NotNull

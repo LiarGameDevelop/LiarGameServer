@@ -1,17 +1,20 @@
 package com.game.liar.dto.response;
 
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.game.liar.dto.MessageBody;
 import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@AllArgsConstructor
 @NoArgsConstructor
 @Getter
-@Setter
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = false)
+@AllArgsConstructor
 @ToString
-public class Rankings {
+@JsonDeserialize
+public class RankingsResponse extends MessageBody {
     private List<RankingInfo> rankings = new ArrayList<>();
 
     @AllArgsConstructor

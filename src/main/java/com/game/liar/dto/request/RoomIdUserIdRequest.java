@@ -1,5 +1,6 @@
 package com.game.liar.dto.request;
 
+import com.game.liar.dto.MessageBody;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,7 +12,7 @@ import javax.validation.constraints.NotBlank;
 @Setter
 @AllArgsConstructor
 @ToString
-public class RoomIdAndUserIdRequest {
+public class RoomIdUserIdRequest{
     @NotBlank
     private String roomId;
 
