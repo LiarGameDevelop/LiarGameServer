@@ -102,12 +102,12 @@ public class GameService {
         throw new NotExistException(String.format("There is no room. room id : %s", roomId));
     }
 
-    public void removeGame(@NotNull String roomName) {
-        if (!gameManagerMap.containsKey(roomName)) {
+    public void removeGame(@NotNull String roomId) {
+        if (!gameManagerMap.containsKey(roomId)) {
             log.error("The game manager does not exists");
             return;
         }
-        gameManagerMap.remove(roomName);
+        gameManagerMap.remove(roomId);
         log.debug("game manager destroyed");
     }
 
@@ -272,7 +272,7 @@ public class GameService {
 
     public VoteResult getMostVoted(String roomId) {
         GameInfo gameInfo = gameManagerMap.get(roomId);
-        List<Map.Entry<String, Long>> mostVoted = gameInfo.getMostVoted();
+        List<Map.Entry<String, Long>> mostVoted = gameInfo.getMostVotedUserIdAndCount();
         return VoteResult.builder()
                 .voteResult(gameInfo.getVoteResult())
                 .mostVoted(mostVoted)
@@ -289,7 +289,7 @@ public class GameService {
             throw new NotAllowedActionException("Only room owner can open liar");
         }
         gameInfo.nextState();
-        boolean isAnswer = gameInfo.getMostVoted().get(0).getKey().equals(gameInfo.getLiarId());
+        boolean isAnswer = gameInfo.getMostVotedUserIdAndCount().get(0).getKey().equals(gameInfo.getLiarId());
         return new OpenLiarResponse(gameInfo.getLiarId(), isAnswer, gameInfo.getState());
     }
 

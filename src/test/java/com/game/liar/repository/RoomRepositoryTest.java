@@ -3,6 +3,7 @@ package com.game.liar.repository;
 import com.game.liar.domain.Room;
 import com.game.liar.dto.request.RoomIdUserIdRequest;
 import com.game.liar.dto.request.RoomIdRequest;
+import com.game.liar.dto.request.RoomIdUserNameRequest;
 import com.game.liar.dto.request.RoomInfoRequest;
 import com.game.liar.exception.NotAllowedActionException;
 import org.junit.jupiter.api.BeforeEach;
@@ -107,7 +108,7 @@ class RoomRepositoryTest {
         info.setMaxPersonCount(5);
         Room room = roomRepository.create(info);
 
-        RoomIdUserIdRequest idRequest = new RoomIdUserIdRequest(room.getRoomId(),"1234");
+        RoomIdUserNameRequest idRequest = new RoomIdUserNameRequest(room.getRoomId(),"1234");
 
         //When
         Room result = roomRepository.addRoomMember(idRequest);

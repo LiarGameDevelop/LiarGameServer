@@ -4,6 +4,7 @@ import com.game.liar.domain.User;
 import com.game.liar.domain.Room;
 import com.game.liar.dto.request.RoomIdUserIdRequest;
 import com.game.liar.dto.request.RoomIdRequest;
+import com.game.liar.dto.request.RoomIdUserNameRequest;
 import com.game.liar.dto.request.RoomInfoRequest;
 import com.game.liar.exception.AlreadyExistException;
 import com.game.liar.exception.MaxCountException;
@@ -90,12 +91,12 @@ public class RoomRepository {
         return roomMap.getOrDefault(roomId, null);
     }
 
-    public Room addRoomMember(RoomIdUserIdRequest request) throws MaxCountException {
+    public Room addRoomMember(RoomIdUserNameRequest request) throws MaxCountException {
         Room room = getRoom(request.getRoomId());
         String userId = makeUniqueUserId();
         if (room == null)
             throw new NotExistException("Requested Room does not exist");
-        room.addMember(new User(request.getUserId(), userId));
+        room.addMember(new User(request.getUsername(), userId));
         return room;
     }
 

@@ -4,6 +4,7 @@ import com.game.liar.domain.User;
 import com.game.liar.domain.Room;
 import com.game.liar.dto.request.RoomIdUserIdRequest;
 import com.game.liar.dto.request.RoomIdRequest;
+import com.game.liar.dto.request.RoomIdUserNameRequest;
 import com.game.liar.dto.request.RoomInfoRequest;
 import com.game.liar.dto.response.RoomInfoResponseDto;
 import com.game.liar.exception.MaxCountException;
@@ -61,7 +62,7 @@ public class RoomService {
         }
     }
 
-    public RoomInfoResponseDto addRoomMember(RoomIdUserIdRequest request) throws MaxCountException {
+    public RoomInfoResponseDto addRoomMember(RoomIdUserNameRequest request) throws MaxCountException {
         Room room = repository.addRoomMember(request);
         return new RoomInfoResponseDto(room);
     }

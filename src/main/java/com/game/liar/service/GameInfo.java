@@ -23,6 +23,13 @@ public class GameInfo {
     private Timer voteTimer;
     @Getter
     private Timer answerTimer;
+
+    @Getter
+    boolean isTurnTimerStop = false;
+    @Getter
+    boolean isVoteTimerStop = false;
+    @Getter
+    boolean isAnswerTimerStop = false;
     private GameState state;
 
     public GameState getState() {
@@ -130,33 +137,39 @@ public class GameInfo {
 
     public void cancelTurnTimer() {
         if (turnTimer == null) return;
-        log.info("cancel turn timer");
+        log.info("cancel turn timer [room:{}]", roomId);
+        isTurnTimerStop = true;
         turnTimer.cancel();
     }
 
     public void cancelVoteTimer() {
         if (voteTimer == null) return;
-        log.info("cancel vote timer");
+        log.info("cancel vote timer [room:{}]", roomId);
+        isVoteTimerStop = true;
         voteTimer.cancel();
     }
 
     public void cancelAnswerTimer() {
         if (voteTimer == null) return;
-        log.info("cancel liar answer timer");
+        log.info("cancel liar answer timer [room:{}]", roomId);
+        isAnswerTimerStop = true;
         voteTimer.cancel();
     }
 
     public void scheduleTurnTimer(TimerTask task, long delay) {
+        isTurnTimerStop = false;
         turnTimer = new Timer();
         turnTimer.schedule(task, delay);
     }
 
     public void scheduleVoteTimer(TimerTask task, long delay) {
+        isVoteTimerStop = false;
         voteTimer = new Timer();
         voteTimer.schedule(task, delay);
     }
 
     public void scheduleAnswerTimer(TimerTask task, long delay) {
+        isAnswerTimerStop = false;
         answerTimer = new Timer();
         answerTimer.schedule(task, delay);
     }
@@ -168,11 +181,10 @@ public class GameInfo {
     }
 
     public void addVoteResult(String from, String liarDesignatedId) {
-        log.info("user[{}] -> liar [{}]",from,liarDesignatedId);
+        log.info("user[{}] -> liar [{}]", from, liarDesignatedId);
         voteResult.put(from, liarDesignatedId);
 
         voteCount++;
-        log.info("myvoteResult :{}, voteCount = {}",voteResult,voteCount);
     }
 
     public boolean checkVoteCompleted(String from) {
@@ -191,7 +203,7 @@ public class GameInfo {
     }
 
     public void updateScoreBoard() {
-        if (getMostVoted().get(0).getKey().equals(liarId)) {
+        if (getMostVotedUserIdAndCount().get(0).getKey().equals(liarId)) {
             //시민들이 라이어를 맞췄으면 시민들의 점수를 더한다.
             for (Map.Entry<String, Integer> item : scoreboard.entrySet()) {
                 if (!item.getKey().equals(liarId)) {
@@ -221,15 +233,19 @@ public class GameInfo {
         return voteCount == turnOrder.size();
     }
 
-    public List<Map.Entry<String, Long>> getMostVoted() {
+    public List<Map.Entry<String, Long>> getMostVotedUserIdAndCount() {
         Map<String, Long> voteCountByDesignatedId =
                 voteResult.values().stream()
                         .filter(value -> !value.equals(""))
                         .collect(Collectors.groupingBy(liar -> liar, Collectors.counting()));
-        log.info("voteResult :{} from [{}]", voteResult, roomId);
-        Map.Entry<String, Long> mostVoted = voteCountByDesignatedId.entrySet().stream().max(Map.Entry.comparingByValue()).get();
-        return voteCountByDesignatedId.entrySet().stream()
-                .filter(entry -> entry.getValue().longValue() == mostVoted.getValue().longValue()).collect(Collectors.toList());
+        log.info("voteResult :{} from [{}]. counting :{}", voteResult, roomId, voteCountByDesignatedId);
+        Optional<Map.Entry<String, Long>> optional = voteCountByDesignatedId.entrySet().stream().max(Map.Entry.comparingByValue());
+        if(optional.isPresent())
+            return voteCountByDesignatedId.entrySet().stream()
+                .filter(entry -> entry.getValue().longValue() == optional.get().getValue().longValue()).collect(Collectors.toList());
+        else{
+            return null;
+        }
     }
 
     public void resetLiarInfo() {
