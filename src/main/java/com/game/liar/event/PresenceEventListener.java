@@ -32,7 +32,7 @@ public class PresenceEventListener {
     }
 
     @EventListener
-    private void handleSessionConnected(SessionConnectEvent event) {
+    public void handleSessionConnected(SessionConnectEvent event) {
         SimpMessageHeaderAccessor headers = SimpMessageHeaderAccessor.wrap(event.getMessage());
 
         LoginEvent loginEvent = new LoginEvent(headers.getSessionId());
@@ -44,7 +44,8 @@ public class PresenceEventListener {
     }
 
     @EventListener
-    private void handleSessionDisconnect(SessionDisconnectEvent event) {
+    public void handleSessionDisconnect(SessionDisconnectEvent event) {
+        log.info("STOMP client session disconnected. login : {} , logout: {}", loginDestination, logoutDestination);
         Optional.ofNullable(participantRepository.getParticipant(event.getSessionId()))
                 .ifPresent(login -> {
                     messagingTemplate.convertAndSend(logoutDestination, new LogoutEvent(login.getUsername()));
