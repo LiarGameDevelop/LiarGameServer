@@ -4,6 +4,9 @@ spring:
     url: jdbc:mysql://liargame-develop-rds.cybbdecoc9b0.ap-northeast-2.rds.amazonaws.com/liargame
     username: admin
     password: liargamedevelop
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
   jpa:
     show-sql: true
     hibernate:

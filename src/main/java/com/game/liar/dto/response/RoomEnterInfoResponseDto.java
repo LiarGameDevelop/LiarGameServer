@@ -1,6 +1,5 @@
 package com.game.liar.dto.response;
 
-import com.game.liar.domain.Room;
 import com.game.liar.domain.User;
 import com.game.liar.exception.NotExistException;
 import lombok.AllArgsConstructor;
@@ -15,23 +14,26 @@ import java.util.Optional;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class RoomInfoResponseDto {
+public class RoomEnterInfoResponseDto {
     private int maxPersonCount;
     private String ownerId;
     private String roomId;
     private String roomName;
 
+    private User user;
+
     private int personCount;
 
     private List<User> userList;
 
-    public RoomInfoResponseDto(Room room) {
-        maxPersonCount = room.getMaxCount();
-        ownerId = room.getOwnerId();
-        roomId = room.getRoomId();
-        roomName = room.getOwnerName();
-        personCount = room.getUserList().size();
-        userList = room.getUserList();
+    public RoomEnterInfoResponseDto(RoomInfoResponseDto room, User user) {
+        this.maxPersonCount = room.getMaxPersonCount();
+        this.ownerId = room.getOwnerId();
+        this.roomId = room.getRoomId();
+        this.roomName = room.getRoomName();
+        this.personCount = room.getUserList().size();
+        this.userList = room.getUserList();
+        this.user = user;
     }
 
     public User getUser(String userId) {

@@ -19,11 +19,11 @@ The server can be built with gradle.
 
 Windows
 ```
-gradlew.bat clean build
+gradlew clean build
 ```
 Linux
 ```
-gradle clean build
+./gradlew clean build
 ```
 
 ## Execute

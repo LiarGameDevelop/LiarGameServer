@@ -44,7 +44,7 @@ class GameServiceTest {
     }
 
     private String __addRoomMember(String roomId, String name) throws MaxCountException {
-        Room room = roomRepository.addRoomMember(new RoomIdUserIdRequest(roomId, name));
+        Room room = roomRepository.addRoomMember(new RoomIdUserNameRequest(roomId, name));
         String userId = room.getUserList().stream().filter(user -> user.getUsername().equals(name)).findFirst().get().getUserId();
         String username = room.getUserList().stream().filter(user -> user.getUsername().equals(name)).findFirst().get().getUsername();
         gameService.addMember(room.getRoomId(), new User(username, userId));
@@ -505,7 +505,41 @@ class GameServiceTest {
 
         //Then
         assertThat(gameInfo.getVoteCount()).isEqualTo(2);
-        assertThat(gameInfo.getMostVoted()).isEqualTo(Arrays.asList(new AbstractMap.SimpleEntry<>(guestId, 2L)));
+        assertThat(gameInfo.getMostVotedUserIdAndCount()).isEqualTo(Arrays.asList(new AbstractMap.SimpleEntry<>(guestId, 2L)));
+    }
+
+    @Test
+    public void 라이어모두투표안했을때_() throws Exception {
+        //Given
+        Room room = __createRoom("tester1");
+        String roomOwnerId = room.getOwnerId();
+        String roomId = room.getRoomId();
+        String guestId = __addRoomMember(roomId, "tester2");
+        GameInfo gameInfo = gameService.getGame(roomId);
+
+        MessageContainer messageContainer;
+        __startGame(roomOwnerId, roomId);
+        __startRound(roomOwnerId, roomId);
+
+        gameService.nextGameState(roomId); //after: OPEN_KEYWORD
+        gameService.nextGameState(roomId); //after: IN_PROGRESS
+
+        //when
+        gameService.nextGameState(roomId); //after: VOTE_LIAR
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest("")))
+                .senderId(roomOwnerId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest("")))
+                .senderId(guestId)
+                .uuid(UUID.randomUUID().toString())
+                .build();
+        gameService.voteLiar(messageContainer, roomId);
+
+        //Then
+        assertThat(gameInfo.getVoteCount()).isEqualTo(2);
+        assertThat(gameInfo.getMostVotedUserIdAndCount()).isEqualTo(null);
     }
 
     @Test
@@ -538,7 +572,7 @@ class GameServiceTest {
 
         //Then
         assertThat(gameInfo.getVoteCount()).isEqualTo(2);
-        assertThat(gameInfo.getMostVoted()).containsAll(Arrays.asList(new AbstractMap.SimpleEntry<>(guestId, 1L), new AbstractMap.SimpleEntry<>(roomOwnerId, 1L)));
+        assertThat(gameInfo.getMostVotedUserIdAndCount()).containsAll(Arrays.asList(new AbstractMap.SimpleEntry<>(guestId, 1L), new AbstractMap.SimpleEntry<>(roomOwnerId, 1L)));
     }
 
     @Test

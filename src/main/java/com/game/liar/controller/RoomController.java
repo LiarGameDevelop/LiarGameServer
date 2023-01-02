@@ -1,8 +1,11 @@
 package com.game.liar.controller;
 
-import com.game.liar.dto.request.RoomIdUserIdRequest;
+import com.game.liar.domain.User;
 import com.game.liar.dto.request.RoomIdRequest;
+import com.game.liar.dto.request.RoomIdUserIdRequest;
+import com.game.liar.dto.request.RoomIdUserNameRequest;
 import com.game.liar.dto.request.RoomInfoRequest;
+import com.game.liar.dto.response.RoomEnterInfoResponseDto;
 import com.game.liar.dto.response.RoomInfoResponseDto;
 import com.game.liar.exception.MaxCountException;
 import com.game.liar.service.RoomService;
@@ -27,7 +30,6 @@ public class RoomController {
     }
 
     private GameController gameController;
-    //해야할 역할은? 클라가 만들고 싶은 방의 정보를 받아서->방 만들기
 
     @PostMapping("/room")
     public RoomInfoResponseDto create(@Valid @RequestBody RoomInfoRequest request, HttpServletRequest httpRequest) throws MaxCountException {
@@ -36,6 +38,7 @@ public class RoomController {
         if (response != null) {
             gameController.addRoom(response.getRoomId(), response.getOwnerId());
             gameController.addMember(response.getRoomId(), response.getUserList().get(response.getUserList().size() - 1));
+            log.info("[Create] [room:{}]", response);
         }
         return response;
     }
@@ -47,11 +50,13 @@ public class RoomController {
     }
 
     @PostMapping("/room/enter")
-    public RoomInfoResponseDto enterRoom(@Valid @RequestBody RoomIdUserIdRequest request, HttpServletRequest httpRequest) throws MaxCountException {
+    public RoomEnterInfoResponseDto enterRoom(@Valid @RequestBody RoomIdUserNameRequest request, HttpServletRequest httpRequest) throws MaxCountException {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
         RoomInfoResponseDto room = roomService.addRoomMember(request);
-        gameController.addMember(room.getRoomId(), room.getUserList().get(room.getUserList().size() - 1));
-        return room;
+        User newUser = room.getUserList().get(room.getUserList().size() - 1);
+        gameController.addMember(room.getRoomId(), newUser);
+        log.info("[Enter] User:{}, [room:{}]", newUser, room);
+        return new RoomEnterInfoResponseDto(room, newUser);
     }
 
     @PostMapping("/room/leave")
@@ -59,8 +64,7 @@ public class RoomController {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
         //User willDeleteUser = roomService.getUsers(new RoomIdRequest(request.getRoomId()))
         RoomInfoResponseDto room = roomService.leaveRoomMember(request);
-        //TODO : delete left member
-        //gameController.deleteMember(room.getRoomId(), room.getUserList().get(room.getUserList().size() - 1));
+        gameController.deleteMember(room.getRoomId(), room.getUser(request.getUserId()));
         return room;
     }
 
@@ -70,13 +74,13 @@ public class RoomController {
         RoomInfoResponseDto response = roomService.deleteRoom(request);
         if (response != null) {
             //알리기
-            //gameController.(request.getRoomId());
+            gameController.removeRoom(request.getRoomId());
         }
         return response;
     }
 
     public static String getClientIp(HttpServletRequest request) {
-        if(request==null){
+        if (request == null) {
             return "127.0.0.1";
         }
         String clientIp = null;

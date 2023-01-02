@@ -8,14 +8,10 @@ import com.game.liar.domain.GameState;
 import com.game.liar.domain.Global;
 import com.game.liar.dto.MessageBody;
 import com.game.liar.dto.MessageContainer;
-import com.game.liar.dto.request.KeywordRequest;
-import com.game.liar.dto.request.LiarDesignateRequest;
-import com.game.liar.dto.request.RoomIdUserIdRequest;
-import com.game.liar.dto.request.RoomInfoRequest;
+import com.game.liar.dto.request.*;
 import com.game.liar.dto.response.*;
 import com.game.liar.service.GameInfo;
 import com.game.liar.service.GameService;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -94,7 +90,7 @@ class GameControllerTest {
 
     private class SessionInfo {
         StompSession session;
-        RoomInfoResponseDto roomInfo;
+        RoomEnterInfoResponseDto roomInfo;
         String guestId;
         TestStompHandlerChain<MessageContainer> privateStompHandler;
         TestStompHandlerChain<MessageContainer> publicStompHandler;
@@ -103,8 +99,8 @@ class GameControllerTest {
     private void 게임참가(String name) throws Exception {
         SessionInfo s = new SessionInfo();
         s.session = createStompSession();
-        s.roomInfo = roomController.enterRoom(new RoomIdUserIdRequest(roomId, name), null);
-        s.guestId = s.roomInfo.getUserList().get(s.roomInfo.getUserList().size() - 1).getUserId();
+        s.roomInfo = roomController.enterRoom(new RoomIdUserNameRequest(roomId, name), null);
+        s.guestId = s.roomInfo.getUser().getUserId();
 
         sessionInfoList.add(s);
 
