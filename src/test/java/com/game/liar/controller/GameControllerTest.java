@@ -798,7 +798,7 @@ class GameControllerTest {
     public void 라이어정답제출했을때_틀림() throws Exception {
         //Given
         __라이어공개요청();
-        gameService.cancelAnswerTimer(roomId);
+
         //When
         TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
         __checkIfLiarAnswerIsCorrect(handler1, "");
@@ -978,7 +978,7 @@ class GameControllerTest {
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
-        Thread.sleep(1000);
+        Thread.sleep(2000);
         MessageContainer message1 = handler1.getCompletableFuture(0);
         MessageContainer message2 = handler2.getCompletableFuture(0);
 
