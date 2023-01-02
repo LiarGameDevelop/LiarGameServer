@@ -1,9 +1,9 @@
 package com.game.liar.service;
 
 import com.game.liar.domain.Room;
-import com.game.liar.domain.request.RoomIdRequest;
-import com.game.liar.domain.request.RoomInfoRequest;
-import com.game.liar.domain.response.RoomInfoResponseDto;
+import com.game.liar.dto.request.RoomIdRequest;
+import com.game.liar.dto.request.RoomInfoRequest;
+import com.game.liar.dto.response.RoomInfoResponseDto;
 import com.game.liar.exception.NotExistException;
 import com.game.liar.repository.RoomRepository;
 import org.assertj.core.api.Assertions;

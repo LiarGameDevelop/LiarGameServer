@@ -84,16 +84,6 @@ public enum GameState {
     LIAR_ANSWER() {
         @Override
         public GameState next() {
-            return CHECK_LIAR_ANSWER;
-        }
-        @Override
-        public GameState loop() {
-            return CHECK_LIAR_ANSWER;
-        }
-    },
-    CHECK_LIAR_ANSWER() {
-        @Override
-        public GameState next() {
             return PUBLISH_SCORE;
         }
         @Override
@@ -101,25 +91,14 @@ public enum GameState {
             return PUBLISH_SCORE;
         }
     },
-
     PUBLISH_SCORE() {
         @Override
         public GameState next() {
-            return END_ROUND;
-        }
-        @Override
-        public GameState loop() {
-            return END_ROUND;
-        }
-    },
-    END_ROUND() {
-        @Override
-        public GameState next() {
             return PUBLISH_RANKINGS;
         }
         @Override
         public GameState loop() {
-            return PUBLISH_RANKINGS;
+            return BEFORE_ROUND;
         }
     },
     PUBLISH_RANKINGS() {
@@ -131,32 +110,17 @@ public enum GameState {
         public GameState loop() {
             return END_GAME;
         }
-    },//순위선정 등 게임종료시
+    },
     END_GAME() {
         @Override
         public GameState next() {
-            return END;
-        }
-        @Override
-        public GameState loop() {
-            return END;
-        }
-    },
-    END() {
-        @Override
-        public GameState next() {
             return INITIAL;
         }
         @Override
         public GameState loop() {
-            return INITIAL;
+            return BEFORE_START;
         }
     };
-
-    public String getStatus() {
-        return this.name();
-    }
-
     public abstract GameState next();
     public abstract GameState loop();
 }

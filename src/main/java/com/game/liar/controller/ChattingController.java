@@ -1,6 +1,6 @@
 package com.game.liar.controller;
 
-import com.game.liar.domain.request.ChatMessage;
+import com.game.liar.dto.ChatMessageDto;
 import com.game.liar.service.ChattingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -21,8 +21,8 @@ public class ChattingController {
     }
 
     @MessageMapping("/messages/{roomId}")
-    public void chat(@Payload ChatMessage message, @DestinationVariable("roomId") String roomId) {
-        chattingService.save(message);
+    public void chat(@Payload ChatMessageDto message, @DestinationVariable("roomId") String roomId) {
+        chattingService.save(message,roomId);
         simpMessagingTemplate.convertAndSend(String.format("/subscribe/room/%s/chat", roomId), message);
     }
 }

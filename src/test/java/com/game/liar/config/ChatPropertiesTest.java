@@ -11,7 +11,7 @@ class ChatPropertiesTest {
     @Autowired
     ChatProperties properties;
     @Test
-    public void load (){
+    public void yml파일에서_읽어온값이_제대로_객체에들어가있다 (){
         assertThat(properties.getDestinations().getLogin()).isEqualTo("/subscribe/room.login/");
         assertThat(properties.getDestinations().getLogout()).isEqualTo("/subscribe/room.logout/");
     }

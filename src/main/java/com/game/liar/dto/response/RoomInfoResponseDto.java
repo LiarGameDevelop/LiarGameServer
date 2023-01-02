@@ -1,7 +1,10 @@
-package com.game.liar.domain.response;
+package com.game.liar.dto.response;
 
+import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.game.liar.domain.User;
 import com.game.liar.domain.Room;
+import com.game.liar.dto.MessageBody;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,7 +16,7 @@ import java.util.List;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class RoomInfoResponseDto {
+public class RoomInfoResponseDto{
     private int maxPersonCount;
     private String ownerId;
     private String roomId;

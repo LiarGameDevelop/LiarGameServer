@@ -1,9 +1,9 @@
 package com.game.liar.repository;
 
 import com.game.liar.domain.Room;
-import com.game.liar.domain.request.RoomIdAndUserIdRequest;
-import com.game.liar.domain.request.RoomIdRequest;
-import com.game.liar.domain.request.RoomInfoRequest;
+import com.game.liar.dto.request.RoomIdUserIdRequest;
+import com.game.liar.dto.request.RoomIdRequest;
+import com.game.liar.dto.request.RoomInfoRequest;
 import com.game.liar.exception.NotAllowedActionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,7 +58,7 @@ class RoomRepositoryTest {
         info.setMaxPersonCount(5);
         Room room = roomRepository.create(info);
 
-        RoomIdAndUserIdRequest idRequest = new RoomIdAndUserIdRequest(room.getRoomId(),room.getOwnerId());
+        RoomIdUserIdRequest idRequest = new RoomIdUserIdRequest(room.getRoomId(),room.getOwnerId());
 
         //When
         roomRepository.deleteRoom(idRequest);
@@ -75,7 +75,7 @@ class RoomRepositoryTest {
         info.setMaxPersonCount(5);
         Room room = roomRepository.create(info);
 
-        RoomIdAndUserIdRequest idRequest = new RoomIdAndUserIdRequest("1234",room.getOwnerId());
+        RoomIdUserIdRequest idRequest = new RoomIdUserIdRequest("1234",room.getOwnerId());
 
         //When
         assertThrows(NullPointerException.class, ()->{roomRepository.deleteRoom(idRequest);});
@@ -91,7 +91,7 @@ class RoomRepositoryTest {
         info.setMaxPersonCount(5);
         Room room = roomRepository.create(info);
 
-        RoomIdAndUserIdRequest idRequest = new RoomIdAndUserIdRequest(room.getRoomId(),"1234");
+        RoomIdUserIdRequest idRequest = new RoomIdUserIdRequest(room.getRoomId(),"1234");
 
         //When
         assertThrows(NotAllowedActionException.class, ()->{roomRepository.deleteRoom(idRequest);});
@@ -107,7 +107,7 @@ class RoomRepositoryTest {
         info.setMaxPersonCount(5);
         Room room = roomRepository.create(info);
 
-        RoomIdAndUserIdRequest idRequest = new RoomIdAndUserIdRequest(room.getRoomId(),"1234");
+        RoomIdUserIdRequest idRequest = new RoomIdUserIdRequest(room.getRoomId(),"1234");
 
         //When
         Room result = roomRepository.addRoomMember(idRequest);
