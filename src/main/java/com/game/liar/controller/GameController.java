@@ -195,6 +195,7 @@ public class GameController {
             if (voteResult.getMostVoted() != null) {
                 if (voteResult.getMostVoted().size() == 1) {
                     gameInfo.nextState();
+                    sendHostMessage(uuid, new MessageContainer.Message(NOTIFY_LIAR_OPEN_REQUEST, new GameStateResponse(gameInfo.getState())), roomId);
                 } else {
                     sendNeedVote(gameInfo, roomId);
                 }

@@ -624,8 +624,10 @@ class GameControllerTest {
         //When
         TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
         TestStompHandlerChain<MessageContainer> handler2 = new TestStompHandlerChain<>(MessageContainer.class);
+        TestStompHandlerChain<MessageContainer> handler3 = new TestStompHandlerChain<>(MessageContainer.class);
         stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
         sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler2);
+        stompSession.subscribe(String.format("/subscribe/system/private/%s", roomId), handler3);
 
         String uuid = UUID.randomUUID().toString();
         String guestId = sessionInfoList.get(0).guestId;
@@ -651,13 +653,10 @@ class GameControllerTest {
         assertThat(message1.getSenderId()).isEqualTo(SERVER_ID);
         assertThat(message1.getMessage()).isEqualTo(expectMessage.getMessage());
 
-        //이게 왜 들어가있지?..
-//        message1 = handler1.getCompletableFuture(1);
-//        message2 = handler2.getCompletableFuture(1);
-//        expectMessage = Util.getExpectedMessageContainer(NOTIFY_LIAR_OPENED, new GameStateResponse(GameState.OPEN_LIAR));
-//        assertThat(message1).isEqualTo(message2);
-//        assertThat(message1.getSenderId()).isEqualTo(SERVER_ID);
-//        assertThat(message1.getMessage()).isEqualTo(expectMessage.getMessage());
+        message1 = handler3.getCompletableFuture(1);
+        expectMessage = Util.getExpectedMessageContainer(NOTIFY_LIAR_OPEN_REQUEST, new GameStateResponse(GameState.OPEN_LIAR));
+        assertThat(message1.getSenderId()).isEqualTo(SERVER_ID);
+        assertThat(message1.getMessage()).isEqualTo(expectMessage.getMessage());
     }
 
     @Test
@@ -678,7 +677,7 @@ class GameControllerTest {
         String liarDesignatedId = sessionInfoList.get(0).guestId;
         __sendVoteLiar(uuid, ownerId, liarDesignatedId);
 
-        Thread.sleep(2000);
+        Thread.sleep(4000);
         MessageContainer message1 = handler1.getCompletableFuture(-1);
         MessageContainer message2 = handler2.getCompletableFuture(-1);
         //Then
@@ -1131,6 +1130,7 @@ class GameControllerTest {
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
+        Thread.sleep(800);
         MessageContainer message1 = handler1.getCompletableFuture(0);
         MessageContainer message2 = handler2.getCompletableFuture(0);
 
