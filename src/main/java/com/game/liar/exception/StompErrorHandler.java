@@ -5,15 +5,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.StompSubProtocolErrorHandler;
 
 @Component
-public class ErrorHandler extends StompSubProtocolErrorHandler {
-    public ErrorHandler() {
+public class StompErrorHandler extends StompSubProtocolErrorHandler {
+    public StompErrorHandler() {
         super();
     }
 
     @Override
     public Message<byte[]> handleClientMessageProcessingError(Message<byte[]> clientMessage, Throwable ex) {
-        MyExceptionHandler handler = new MyExceptionHandler(ex);
-        handler.handleException(clientMessage, ex);
-        return super.handleClientMessageProcessingError(clientMessage, ex);
+        StompExceptionHandler handler = new StompExceptionHandler(ex);
+        return handler.handleException(clientMessage, ex);
+        //return super.handleClientMessageProcessingError(clientMessage, ex);
     }
 }

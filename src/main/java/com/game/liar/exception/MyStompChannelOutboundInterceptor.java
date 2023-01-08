@@ -15,8 +15,7 @@ import org.springframework.util.MultiValueMap;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class StompChannelOutboundInterceptor implements ChannelInterceptor {
-    private final MessageChannel clientOutboundChannel;
+public class MyStompChannelOutboundInterceptor implements ChannelInterceptor {
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -30,7 +29,9 @@ public class StompChannelOutboundInterceptor implements ChannelInterceptor {
             log.info("StompChannelOutboundInterceptor preSend headers :{}", map);
             accessor.setSessionId(accessor.getSessionId());
             accessor.setSubscriptionId(accessor.getSubscriptionId());
-            clientOutboundChannel.send(MessageBuilder.createMessage(new byte[0], headerAccessor.getMessageHeaders()));
+            channel.send(MessageBuilder.createMessage(new byte[0], headerAccessor.getMessageHeaders()));
+            //clientOutboundChannel.send(MessageBuilder.createMessage(new byte[0], headerAccessor.getMessageHeaders()));
+            return message;
         }
         return ChannelInterceptor.super.preSend(message, channel);
     }
