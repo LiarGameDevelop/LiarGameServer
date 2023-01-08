@@ -33,7 +33,7 @@ class RoomServiceTest {
         RoomInfoResponse result = roomService.create(roomInfo);
         //Then
         Assertions.assertThat(result).isNotNull();
-        assertThat(result.getRoomName()).isEqualTo(roomInfo.getOwnerName());
+        assertThat(result.getUserList().get(0).getUsername()).isEqualTo(roomInfo.getOwnerName());
     }
     @Test
     public void 방만들기_Error_roomname정보없음() throws Exception {
@@ -57,7 +57,7 @@ class RoomServiceTest {
 
         RoomInfoResponse result = roomService.getRoom(idRequest);
 
-        assertThat(room.getRoomName()).isEqualTo(result.getRoomName());
+        assertThat(room.getRoomId()).isEqualTo(result.getRoomId());
         assertThat(room.getMaxPersonCount()).isEqualTo(result.getMaxPersonCount());
         assertThat(result.getOwnerId()).isNotBlank();
     }

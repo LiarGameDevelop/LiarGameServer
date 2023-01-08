@@ -19,8 +19,6 @@ public class RoomInfoResponse {
     private int maxPersonCount;
     private String ownerId;
     private String roomId;
-    private String roomName;
-
     private int personCount;
 
     private List<User> userList;
@@ -29,7 +27,6 @@ public class RoomInfoResponse {
         maxPersonCount = room.getMaxCount();
         ownerId = room.getOwnerId();
         roomId = room.getRoomId();
-        roomName = room.getOwnerName();
         personCount = room.getUserList().size();
         userList = room.getUserList();
     }

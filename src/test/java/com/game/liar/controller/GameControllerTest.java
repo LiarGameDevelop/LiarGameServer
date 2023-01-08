@@ -1131,7 +1131,6 @@ class GameControllerTest {
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
-        Thread.sleep(2000);
         MessageContainer message1 = handler1.getCompletableFuture(0);
         MessageContainer message2 = handler2.getCompletableFuture(0);
 

@@ -85,8 +85,8 @@ public class GameController {
         }
     }
 
-    public void addRoom(String roomName, String ownerId) {
-        gameService.addGame(roomName, ownerId);
+    public void addRoom(String roomId, String ownerId) {
+        gameService.addGame(roomId, ownerId);
     }
 
     public void removeRoom(String roomId) {

@@ -18,7 +18,6 @@ public class RoomEnterInfoResponse {
     private int maxPersonCount;
     private String ownerId;
     private String roomId;
-    private String roomName;
 
     private User user;
 
@@ -30,7 +29,6 @@ public class RoomEnterInfoResponse {
         this.maxPersonCount = room.getMaxPersonCount();
         this.ownerId = room.getOwnerId();
         this.roomId = room.getRoomId();
-        this.roomName = room.getRoomName();
         this.personCount = room.getUserList().size();
         this.userList = room.getUserList();
         this.user = user;
