@@ -8,14 +8,15 @@ import com.game.liar.dto.MessageContainer;
 import com.game.liar.dto.request.KeywordRequest;
 import com.game.liar.dto.request.LiarDesignateRequest;
 import com.game.liar.dto.response.*;
+import com.game.liar.exception.ErrorResult;
+import com.game.liar.exception.JsonDeserializeException;
+import com.game.liar.exception.LiarGameException;
 import com.game.liar.exception.NotAllowedActionException;
 import com.game.liar.service.GameInfo;
 import com.game.liar.service.GameService;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.handler.annotation.DestinationVariable;
-import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.handler.annotation.*;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,9 +28,9 @@ import static com.game.liar.domain.Global.*;
 @Slf4j
 public class GameController {
 
-    private static ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    private SimpMessagingTemplate messagingTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
     private GameService gameService;
     @Setter
     private long timeout = 20000;
@@ -39,36 +40,46 @@ public class GameController {
         this.gameService = gameService;
     }
 
-    //TODO: use validation
-    @MessageMapping("/system/private/{roomId}")
-    public void handlePrivateMessage(@Payload String requestStr, @DestinationVariable("roomId") String roomId) {
-        log.info("[private] message from room id({}) : {}", roomId, requestStr);
-        if (gameService.checkRoomExist(roomId)) {
-            MessageContainer request = null;
-            try {
-                request = objectMapper.readValue(requestStr, MessageContainer.class);
-                String method = request.getMessage().getMethod();
-                privateProcessMapper.get(method).process(request, roomId);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
+    @MessageExceptionHandler
+    @SendTo("/subscribe/system/private/{id}")
+    public void LiarGameExceptionHandler(LiarGameException ex, String requestStr) {
+        MessageContainer request;
+        try {
+            request = objectMapper.readValue(requestStr, MessageContainer.class);
+        } catch (JsonProcessingException e) {
+            log.info("Json Parsing error : ex from [request:{}]", requestStr);
+            throw new RuntimeException(e);
+        }
+        try {
+            if (request.getSenderId() != null) {
+                sendPrivateMessage(request.getUuid()
+                        , new MessageContainer.Message(
+                                apiRequestMapper.get(request.getMessage().getMethod()) != null ? apiRequestMapper.get(request.getMessage().getMethod()) : "METHOD_ERROR"
+                                , new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage()))))
+                        , request.getSenderId());
             }
-        } else {
-            log.error("mapped room id does not exist, room id : {}", roomId);
+        } catch (JsonProcessingException jsonEx) {
+            throw new RuntimeException(jsonEx);
         }
     }
 
-    @MessageMapping("/system/public/{roomId}")
-    public void handlePublicMessage(@Payload String requestStr, @DestinationVariable("roomId") String roomId) {
-        log.info("[public] message from room id({}) : {}", roomId, requestStr);
+    //TODO: use validation
+    @MessageMapping("/system/private/{roomId}")
+    public void handlePrivateMessage(@Payload String requestStr, @DestinationVariable("roomId") String roomId) throws JsonDeserializeException {
+        log.info("[private] message from room id({}) : {}", roomId, requestStr);
+        messageHandler(roomId, requestStr);
+    }
+
+    private void messageHandler(String roomId, String requestStr) throws JsonDeserializeException {
         if (gameService.checkRoomExist(roomId)) {
             MessageContainer request = null;
             try {
                 request = objectMapper.readValue(requestStr, MessageContainer.class);
-                String method = request.getMessage().getMethod();
-                publicProcessMapper.get(method).process(request, roomId);
-            } catch (JsonProcessingException | NullPointerException e) {
-                throw new RuntimeException(e);
+            } catch (JsonProcessingException e) {
+                throw new JsonDeserializeException("JSON format doest not fit for JAVA object. Please check reference");
             }
+            String method = request.getMessage().getMethod();
+            messageMapper.get(method).process(request, roomId);
         } else {
             log.error("mapped room id does not exist, room id : {}", roomId);
         }
@@ -133,7 +144,6 @@ public class GameController {
                     .category(gameInfo.getCurrentRoundCategory())
                     .keyword(isLiar ? "" : gameInfo.getCurrentRoundKeyword())
                     .turnOrder(gameInfo.getTurnOrder())
-                    //.state(gameInfo.getState())
                     .build();
             log.info("[API]openKeyword response : {}", body);
             sendPrivateMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_KEYWORD_OPENED, body), userId);
@@ -182,14 +192,13 @@ public class GameController {
             String uuid = UUID.randomUUID().toString();
             sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_VOTE_RESULT, voteResult), roomId);
 
-            if(voteResult.getMostVoted()!=null) {
+            if (voteResult.getMostVoted() != null) {
                 if (voteResult.getMostVoted().size() == 1) {
                     gameInfo.nextState();
                 } else {
                     sendNeedVote(gameInfo, roomId);
                 }
-            }
-            else{
+            } else {
                 sendNeedVote(gameInfo, roomId);
             }
         }
@@ -268,14 +277,7 @@ public class GameController {
         gameService.resetGame(roomId);
     }
 
-    private final Map<String, ProcessGame> publicProcessMapper = new HashMap<String, ProcessGame>() {
-        {
-            put(Global.GET_GATE_STATE, getGameState);
-            put(Global.REQUEST_TURN_FINISH, requestTurnFinished);
-        }
-    };
-
-    private final Map<String, ProcessGame> privateProcessMapper = new HashMap<String, ProcessGame>() {
+    private final Map<String, ProcessGame> messageMapper = new HashMap<String, ProcessGame>() {
         {
             put(Global.START_GAME, startGame);
             put(Global.START_ROUND, startRound);
@@ -286,6 +288,8 @@ public class GameController {
             put(Global.CHECK_KEYWORD_CORRECT, checkKeywordCorrect);
             put(Global.OPEN_SCORES, openScores);
             put(Global.PUBLISH_RANKINGS, publishRankings);
+            put(Global.GET_GATE_STATE, getGameState);
+            put(Global.REQUEST_TURN_FINISH, requestTurnFinished);
         }
     };
 

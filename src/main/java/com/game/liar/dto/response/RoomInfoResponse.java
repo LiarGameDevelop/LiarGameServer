@@ -15,7 +15,7 @@ import java.util.Optional;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class RoomInfoResponseDto {
+public class RoomInfoResponse {
     private int maxPersonCount;
     private String ownerId;
     private String roomId;
@@ -25,7 +25,7 @@ public class RoomInfoResponseDto {
 
     private List<User> userList;
 
-    public RoomInfoResponseDto(Room room) {
+    public RoomInfoResponse(Room room) {
         maxPersonCount = room.getMaxCount();
         ownerId = room.getOwnerId();
         roomId = room.getRoomId();

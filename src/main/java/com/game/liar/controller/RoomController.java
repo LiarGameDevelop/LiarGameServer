@@ -5,8 +5,8 @@ import com.game.liar.dto.request.RoomIdRequest;
 import com.game.liar.dto.request.RoomIdUserIdRequest;
 import com.game.liar.dto.request.RoomIdUserNameRequest;
 import com.game.liar.dto.request.RoomInfoRequest;
-import com.game.liar.dto.response.RoomEnterInfoResponseDto;
-import com.game.liar.dto.response.RoomInfoResponseDto;
+import com.game.liar.dto.response.RoomEnterInfoResponse;
+import com.game.liar.dto.response.RoomInfoResponse;
 import com.game.liar.exception.MaxCountException;
 import com.game.liar.service.RoomService;
 import lombok.extern.slf4j.Slf4j;
@@ -32,9 +32,9 @@ public class RoomController {
     private GameController gameController;
 
     @PostMapping("/room")
-    public RoomInfoResponseDto create(@Valid @RequestBody RoomInfoRequest request, HttpServletRequest httpRequest) throws MaxCountException {
+    public RoomInfoResponse create(@Valid @RequestBody RoomInfoRequest request, HttpServletRequest httpRequest) throws MaxCountException {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
-        RoomInfoResponseDto response = roomService.create(request);
+        RoomInfoResponse response = roomService.create(request);
         if (response != null) {
             gameController.addRoom(response.getRoomId(), response.getOwnerId());
             gameController.addMember(response.getRoomId(), response.getUserList().get(response.getUserList().size() - 1));
@@ -44,34 +44,34 @@ public class RoomController {
     }
 
     @GetMapping("/room")
-    public RoomInfoResponseDto lookup(@Valid @RequestParam("roomId") String roomId, HttpServletRequest httpRequest) {
+    public RoomInfoResponse lookup(@Valid @RequestParam("roomId") String roomId, HttpServletRequest httpRequest) {
         log.info("request :" + roomId + ", ip :" + getClientIp(httpRequest));
         return roomService.getRoom(new RoomIdRequest(roomId));
     }
 
     @PostMapping("/room/enter")
-    public RoomEnterInfoResponseDto enterRoom(@Valid @RequestBody RoomIdUserNameRequest request, HttpServletRequest httpRequest) throws MaxCountException {
+    public RoomEnterInfoResponse enterRoom(@Valid @RequestBody RoomIdUserNameRequest request, HttpServletRequest httpRequest) throws MaxCountException {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
-        RoomInfoResponseDto room = roomService.addRoomMember(request);
+        RoomInfoResponse room = roomService.addRoomMember(request);
         User newUser = room.getUserList().get(room.getUserList().size() - 1);
         gameController.addMember(room.getRoomId(), newUser);
         log.info("[Enter] User:{}, [room:{}]", newUser, room);
-        return new RoomEnterInfoResponseDto(room, newUser);
+        return new RoomEnterInfoResponse(room, newUser);
     }
 
     @PostMapping("/room/leave")
-    public RoomInfoResponseDto leaveRoom(@Valid @RequestBody RoomIdUserIdRequest request, HttpServletRequest httpRequest) {
+    public RoomInfoResponse leaveRoom(@Valid @RequestBody RoomIdUserIdRequest request, HttpServletRequest httpRequest) {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
         //User willDeleteUser = roomService.getUsers(new RoomIdRequest(request.getRoomId()))
-        RoomInfoResponseDto room = roomService.leaveRoomMember(request);
+        RoomInfoResponse room = roomService.leaveRoomMember(request);
         gameController.deleteMember(room.getRoomId(), room.getUser(request.getUserId()));
         return room;
     }
 
     @DeleteMapping("/room")
-    public RoomInfoResponseDto removeRoom(@Valid @RequestBody RoomIdUserIdRequest request, HttpServletRequest httpRequest) {
+    public RoomInfoResponse removeRoom(@Valid @RequestBody RoomIdUserIdRequest request, HttpServletRequest httpRequest) {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
-        RoomInfoResponseDto response = roomService.deleteRoom(request);
+        RoomInfoResponse response = roomService.deleteRoom(request);
         if (response != null) {
             //알리기
             gameController.removeRoom(request.getRoomId());

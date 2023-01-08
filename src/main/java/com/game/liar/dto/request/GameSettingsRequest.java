@@ -14,6 +14,7 @@ import java.util.List;
 @EqualsAndHashCode(callSuper = false)
 @JsonDeserialize
 @Builder
+@ToString
 public class GameSettingsRequest extends MessageBody {
     private Integer round;
     private Integer turn;

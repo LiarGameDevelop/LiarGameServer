@@ -3,7 +3,7 @@ package com.game.liar.service;
 import com.game.liar.domain.Room;
 import com.game.liar.dto.request.RoomIdRequest;
 import com.game.liar.dto.request.RoomInfoRequest;
-import com.game.liar.dto.response.RoomInfoResponseDto;
+import com.game.liar.dto.response.RoomInfoResponse;
 import com.game.liar.exception.NotExistException;
 import com.game.liar.repository.RoomRepository;
 import org.assertj.core.api.Assertions;
@@ -30,7 +30,7 @@ class RoomServiceTest {
         roomInfo.setMaxPersonCount(5);
 
         //When
-        RoomInfoResponseDto result = roomService.create(roomInfo);
+        RoomInfoResponse result = roomService.create(roomInfo);
         //Then
         Assertions.assertThat(result).isNotNull();
         assertThat(result.getRoomName()).isEqualTo(roomInfo.getOwnerName());
@@ -51,11 +51,11 @@ class RoomServiceTest {
         RoomInfoRequest roomInfo = new RoomInfoRequest();
         roomInfo.setMaxPersonCount(5);
         roomInfo.setOwnerName("room12");
-        RoomInfoResponseDto room = roomService.create(roomInfo);
+        RoomInfoResponse room = roomService.create(roomInfo);
 
         RoomIdRequest idRequest = new RoomIdRequest(room.getRoomId());
 
-        RoomInfoResponseDto result = roomService.getRoom(idRequest);
+        RoomInfoResponse result = roomService.getRoom(idRequest);
 
         assertThat(room.getRoomName()).isEqualTo(result.getRoomName());
         assertThat(room.getMaxPersonCount()).isEqualTo(result.getMaxPersonCount());

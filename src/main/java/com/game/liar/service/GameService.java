@@ -12,6 +12,7 @@ import com.game.liar.dto.request.RoomIdRequest;
 import com.game.liar.dto.response.*;
 import com.game.liar.exception.NotAllowedActionException;
 import com.game.liar.exception.NotExistException;
+import com.game.liar.exception.RequiredParameterMissingException;
 import com.game.liar.exception.StateNotAllowedExpcetion;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,7 +29,6 @@ public class GameService {
     private RoundService roundService;
 
     private RoomService roomService;
-    ObjectMapper objectMapper = new ObjectMapper();
 
     public GameService(RoundService roundService, RoomService roomService) {
         this.roundService = roundService;
@@ -49,7 +49,7 @@ public class GameService {
         return gameInfo;
     }
 
-    public GameInfo startGame(MessageContainer request, String roomId) {
+    public GameInfo startGame(MessageContainer request, String roomId) throws NotExistException, NotAllowedActionException, StateNotAllowedExpcetion{
         String senderID = request.getSenderId();
         GameInfo gameInfo = gameManagerMap.get(roomId);
         if (gameInfo == null) {
@@ -63,8 +63,8 @@ public class GameService {
 
         log.info("request.getMessage().getBody(): {}", request.getMessage().getBody());
         GameSettingsRequest settings = (GameSettingsRequest) request.getMessage().getBody();
-        if (settings.getRound() == null || settings.getTurn() == null || settings.getCategory() == null) {
-            throw new NullPointerException("Required parameters does exist");
+        if (settings == null || settings.getRound() == null || settings.getTurn() == null || settings.getCategory() == null) {
+            throw new RequiredParameterMissingException("Game round, turn, and category field are required");
         }
         if (settings.getRound() <= 0 || settings.getRound() >= 6) {
             throw new NotAllowedActionException("Round can be 1 to 5");
@@ -122,7 +122,7 @@ public class GameService {
             throw new NotAllowedActionException("You are not owner of this room");
         }
         if (gameInfo.getState() != GameState.BEFORE_ROUND)
-            throw new StateNotAllowedExpcetion("Game does not start");
+            throw new StateNotAllowedExpcetion("Current State is not BEFORE_ROUND");
         if (gameInfo.getGameSettings().getRound() < gameInfo.getRound() + 1) {
             throw new NotAllowedActionException("Round is over.");
         }
@@ -289,7 +289,7 @@ public class GameService {
             throw new NotAllowedActionException("Only room owner can open liar");
         }
         gameInfo.nextState();
-        boolean isAnswer = gameInfo.getMostVotedUserIdAndCount().get(0).getKey().equals(gameInfo.getLiarId());
+        boolean isAnswer = gameInfo.isUsersMatchLiar();
         return new OpenLiarResponse(gameInfo.getLiarId(), isAnswer, gameInfo.getState());
     }
 
@@ -305,7 +305,7 @@ public class GameService {
         KeywordRequest keywordRequest = (KeywordRequest) request.getMessage().getBody();
         gameInfo.nextState();
         gameInfo.setLiarAnswer(gameInfo.getCurrentRoundKeyword().equals(keywordRequest.getKeyword()));
-        return new LiarAnswerResponse(gameInfo.getState(), gameInfo.isLiarAnswer());
+        return new LiarAnswerResponse(gameInfo.getState(), gameInfo.isLiarAnswer(), gameInfo.getCurrentRoundKeyword());
     }
 
     public ScoreboardResponse notifyScores(MessageContainer request, String roomId) {
