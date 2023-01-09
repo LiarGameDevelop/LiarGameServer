@@ -53,7 +53,7 @@ public class Global {
     public enum MessageType {
         MESSAGE,
         DESCRIPTION
-    }
+    };
 
     public static Map<String, String> apiRequestMapper = new HashMap<String, String>() {{
         put(START_GAME, NOTIFY_GAME_STARTED);

@@ -1,7 +1,7 @@
 package com.game.liar.config;
 
 import com.game.liar.event.PresenceEventListener;
-import com.game.liar.exception.MyStompChannelOutboundInterceptor;
+import com.game.liar.exception.MyStompChannelInboundInterceptor;
 import com.game.liar.exception.StompErrorHandler;
 import com.game.liar.repository.ParticipantRepository;
 import org.springframework.context.annotation.Bean;
@@ -22,11 +22,11 @@ public class StompConfig implements WebSocketMessageBrokerConfigurer {
     private final String ENDPOINT = "/ws-connection";
     private final String CORS_PATTERN = "*";
     private final StompErrorHandler stompErrorHandler;
-    private final MyStompChannelOutboundInterceptor channelOutboundInterceptor;
+    private final MyStompChannelInboundInterceptor channelInboundInterceptor;
 
-    public StompConfig(StompErrorHandler stompErrorHandler, MyStompChannelOutboundInterceptor channelOutboundInterceptor) {
+    public StompConfig(StompErrorHandler stompErrorHandler, MyStompChannelInboundInterceptor channelInboundInterceptor) {
         this.stompErrorHandler = stompErrorHandler;
-        this.channelOutboundInterceptor = channelOutboundInterceptor;
+        this.channelInboundInterceptor = channelInboundInterceptor;
     }
 
     /**
@@ -61,6 +61,6 @@ public class StompConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureClientInboundChannel(ChannelRegistration registration) {
-        registration.interceptors(channelOutboundInterceptor);
+        //registration.interceptors(channelOutboundInterceptor);
     }
 }
