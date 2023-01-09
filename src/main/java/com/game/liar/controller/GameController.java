@@ -15,9 +15,14 @@ import com.game.liar.exception.NotAllowedActionException;
 import com.game.liar.service.GameInfo;
 import com.game.liar.service.GameService;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.handler.annotation.*;
+import org.springframework.messaging.handler.annotation.DestinationVariable;
+import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
+import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.*;
@@ -40,31 +45,31 @@ public class GameController {
         this.gameService = gameService;
     }
 
+    //TODO : refactoring
+    @SneakyThrows
     @MessageExceptionHandler
-    @SendTo("/subscribe/system/private/{id}")
-    public void LiarGameExceptionHandler(LiarGameException ex, String requestStr) {
+    @SendToUser(destinations = "/subscribe/errors", broadcast = false)
+    public MessageContainer LiarGameExceptionHandler(LiarGameException ex, String requestStr) {
         MessageContainer request;
         try {
             request = objectMapper.readValue(requestStr, MessageContainer.class);
         } catch (JsonProcessingException e) {
             log.info("Json Parsing error : ex from [request:{}]", requestStr);
-            throw new RuntimeException(e);
+            return MessageContainer.messageContainerBuilder()
+                    .senderId("SERVER")
+                    .message(new MessageContainer.Message(null, new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage())))))
+                    .build();
         }
-        try {
-            if (request.getSenderId() != null) {
-                sendPrivateMessage(request.getUuid()
-                        , new MessageContainer.Message(
-                                apiRequestMapper.get(request.getMessage().getMethod()) != null ? apiRequestMapper.get(request.getMessage().getMethod()) : "METHOD_ERROR"
-                                , new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage()))))
-                        , request.getSenderId());
-            }
-        } catch (JsonProcessingException jsonEx) {
-            throw new RuntimeException(jsonEx);
-        }
+        return MessageContainer.messageContainerBuilder()
+                .uuid(request.getUuid())
+                .senderId("SERVER")
+                .message(new MessageContainer.Message(
+                        apiRequestMapper.get(request.getMessage().getMethod()) != null ? apiRequestMapper.get(request.getMessage().getMethod()) : "METHOD_ERROR"
+                        , new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage())))))
+                .build();
     }
 
-    //TODO: use validation
-    @MessageMapping("/system/private/{roomId}")
+    @MessageMapping("/private/{roomId}")
     public void handlePrivateMessage(@Payload String requestStr, @DestinationVariable("roomId") String roomId) throws JsonDeserializeException {
         log.info("[private] message from room id({}) : {}", roomId, requestStr);
         messageHandler(roomId, requestStr);
@@ -359,16 +364,14 @@ public class GameController {
         gameInfo.scheduleAnswerTimer(task, timeout);
     }
 
-    public MessageContainer sendHostMessage(String uuid, MessageContainer.Message message, String roomId) {
+    public void sendHostMessage(String uuid, MessageContainer.Message message, String roomId) {
         MessageContainer response = MessageContainer.messageContainerBuilder()
                 .uuid(uuid)
                 .senderId("SERVER")
                 .message(message)
                 .build();
         log.info("sendHostMessage. message: {}, [room:{}]", response, roomId);
-
-        messagingTemplate.convertAndSend(String.format("/subscribe/system/private/%s", roomId), response);
-        return response;
+        messagingTemplate.convertAndSend(String.format("/subscribe/private/%s", roomId), response);
     }
 
     public void sendPrivateMessage(String uuid, MessageContainer.Message message, String receiver) {
@@ -378,7 +381,7 @@ public class GameController {
                 .message(message)
                 .build();
         log.info("Send private message. message: {}, [receiver:{}]", response, receiver);
-        messagingTemplate.convertAndSend(String.format("/subscribe/system/private/%s", receiver), response);
+        messagingTemplate.convertAndSend(String.format("/subscribe/private/%s", receiver), response);
     }
 
     public void sendPublicMessage(String uuid, MessageContainer.Message message, String roomId) {
@@ -388,6 +391,6 @@ public class GameController {
                 .message(message)
                 .build();
         log.info("Send public message. message: {}, [room:{}]", response, roomId);
-        messagingTemplate.convertAndSend(String.format("/subscribe/system/public/%s", roomId), response);
+        messagingTemplate.convertAndSend(String.format("/subscribe/public/%s", roomId), response);
     }
 }

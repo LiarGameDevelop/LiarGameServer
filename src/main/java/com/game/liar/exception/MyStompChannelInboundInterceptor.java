@@ -15,12 +15,12 @@ import org.springframework.util.MultiValueMap;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class MyStompChannelOutboundInterceptor implements ChannelInterceptor {
+public class MyStompChannelInboundInterceptor implements ChannelInterceptor {
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
-        if (StompCommand.ERROR.equals(accessor.getCommand())) {
+        if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             log.info("StompChannelOutboundInterceptor preSend error detected");
 
             MessageHeaders headers = message.getHeaders();
