@@ -580,7 +580,7 @@ class GameControllerTest {
         //1번차례임
         requestTurnFinishedAndVerify(gameInfo, handler1, handler2,
                 gameInfo.getTurnOrder().get(1).equals(ownerId) ? stompSession : sessionInfoList.get(0).session, 0);
-        Thread.sleep(1000);
+        Thread.sleep(500);
         requestTurnFinishedAndVerify(gameInfo, handler1, handler2,
                 gameInfo.getTurnOrder().get(0).equals(ownerId) ? stompSession : sessionInfoList.get(0).session, 1);
 
@@ -1117,7 +1117,8 @@ class GameControllerTest {
         }
     }
 
-    private void requestTurnFinishedAndVerify(GameInfo gameInfo, TestStompHandlerChain<MessageContainer> handler1, TestStompHandlerChain<MessageContainer> handler2, StompSession session, int i) throws InterruptedException, ExecutionException, TimeoutException {
+    private void requestTurnFinishedAndVerify(GameInfo gameInfo, TestStompHandlerChain<MessageContainer> handler1, TestStompHandlerChain<MessageContainer> handler2, StompSession session, int i)
+            throws InterruptedException, ExecutionException, TimeoutException, JsonProcessingException {
         String uuid = UUID.randomUUID().toString();
         MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
                 .uuid(uuid)
@@ -1125,12 +1126,8 @@ class GameControllerTest {
                 .message(new MessageContainer.Message(Global.REQUEST_TURN_FINISH, null))
                 .build();
 
-        try {
-            session.send(String.format("/publish/system/private/%s", roomId), objectMapper.writeValueAsString(sendMessage));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-        Thread.sleep(800);
+        session.send(String.format("/publish/system/private/%s", roomId), objectMapper.writeValueAsString(sendMessage));
+        System.out.println("sendMessage : " + sendMessage);
         MessageContainer message1 = handler1.getCompletableFuture(0);
         MessageContainer message2 = handler2.getCompletableFuture(0);
 
