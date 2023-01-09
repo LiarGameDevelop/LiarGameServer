@@ -1,7 +1,10 @@
 package com.game.liar.exception;
 
-public class MaxCountException extends Exception {
+import lombok.Getter;
+
+public class MaxCountException extends LiarGameException {
+
     public MaxCountException(String message) {
-        super(message);
+        super(message,"Max count");
     }
 }

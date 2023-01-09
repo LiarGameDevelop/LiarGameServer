@@ -1,6 +1,7 @@
 package com.game.liar.domain;
 
-import lombok.ToString;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Global {
     /**
@@ -16,6 +17,7 @@ public class Global {
     public static final String NOTIFY_TURN = "notifyTurn";
     public static final String NOTIFY_FINDING_LIAR_END = "notifyFindingLiarEnd";
     public static final String NOTIFY_VOTE_RESULT = "notifyVoteResult";
+    public static final String NOTIFY_LIAR_OPEN_REQUEST = "notifyLiarOpenRequest";
 
     public static final String NOTIFY_NEW_VOTE_NEEDED = "notifyNewVoteNeeded";
     public static final String NOTIFY_VOTE_TIMEOUT = "notifyVoteTimeout";
@@ -23,7 +25,7 @@ public class Global {
     public static final String NOTIFY_LIAR_ANSWER_NEEDED = "notifyLiarAnswerNeeded";
     public static final String NOTIFY_LIAR_ANSWER_CORRECT = "notifyLiarAnswerCorrect";
     public static final String NOTIFY_LIAR_ANSWER_TIMEOUT = "notifyLiarAnswerTimeOut";
-    public static final String NOTIFY_SCORES ="notifyScores";
+    public static final String NOTIFY_SCORES = "notifyScores";
     public static final String NOTIFY_ROUND_END = "notifyRoundEnd";
     public static final String NOTIFY_RANKINGS_PUBLISHED = "notifyRankingsPublished";
     public static final String NOTIFY_GAME_END = "notifyGameEnd";
@@ -46,10 +48,23 @@ public class Global {
     public static final String GET_GATE_STATE = "getGameState";
 
     //Common
-    public static final String SERVER_ID="SERVER";
+    public static final String SERVER_ID = "SERVER";
 
     public enum MessageType {
         MESSAGE,
         DESCRIPTION
     }
+
+    public static Map<String, String> apiRequestMapper = new HashMap<String, String>() {{
+        put(START_GAME, NOTIFY_GAME_STARTED);
+        put(START_ROUND, NOTIFY_ROUND_STARTED);
+        put(SELECT_LIAR, NOTIFY_LIAR_SELECTED);
+        put(OPEN_KEYWORD, NOTIFY_KEYWORD_OPENED);
+        put(REQUEST_TURN_FINISH, NOTIFY_FINDING_LIAR_END);
+        put(VOTE_LIAR, NOTIFY_VOTE_RESULT);
+        put(OPEN_LIAR, NOTIFY_LIAR_OPENED);
+        put(CHECK_KEYWORD_CORRECT, NOTIFY_LIAR_ANSWER_CORRECT);
+        put(OPEN_SCORES, NOTIFY_SCORES);
+        put(PUBLISH_RANKINGS, NOTIFY_RANKINGS_PUBLISHED);
+    }};
 }

@@ -1,13 +1,11 @@
 package com.game.liar.exception;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 @AllArgsConstructor
 @Getter
-//@NoArgsConstructor
+@ToString
+@EqualsAndHashCode
 public class ErrorResult {
     private String code;
     private String message;

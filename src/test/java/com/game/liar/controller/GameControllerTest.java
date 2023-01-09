@@ -8,10 +8,15 @@ import com.game.liar.domain.GameState;
 import com.game.liar.domain.Global;
 import com.game.liar.dto.MessageBody;
 import com.game.liar.dto.MessageContainer;
-import com.game.liar.dto.request.*;
+import com.game.liar.dto.request.KeywordRequest;
+import com.game.liar.dto.request.LiarDesignateRequest;
+import com.game.liar.dto.request.RoomIdUserNameRequest;
+import com.game.liar.dto.request.RoomInfoRequest;
 import com.game.liar.dto.response.*;
+import com.game.liar.exception.*;
 import com.game.liar.service.GameInfo;
 import com.game.liar.service.GameService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +45,7 @@ import java.util.stream.Collectors;
 import static com.game.liar.domain.Global.*;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class GameControllerTest {
@@ -88,9 +94,14 @@ class GameControllerTest {
         }
     }
 
+    @AfterEach
+    void afterEachTest() {
+
+    }
+
     private class SessionInfo {
         StompSession session;
-        RoomEnterInfoResponseDto roomInfo;
+        RoomEnterInfoResponse roomInfo;
         String guestId;
         TestStompHandlerChain<MessageContainer> privateStompHandler;
         TestStompHandlerChain<MessageContainer> publicStompHandler;
@@ -109,7 +120,7 @@ class GameControllerTest {
     }
 
     private void 방생성(String roomOwner) throws Exception {
-        RoomInfoResponseDto roomInfo = roomController.create(new RoomInfoRequest(5, roomOwner), null);
+        RoomInfoResponse roomInfo = roomController.create(new RoomInfoRequest(5, roomOwner), null);
         roomId = roomInfo.getRoomId();
         ownerId = roomInfo.getOwnerId();
     }
@@ -120,7 +131,7 @@ class GameControllerTest {
         teardown();
     }
 
-    void teardown(){
+    void teardown() {
         gameService.getGame(roomId).cancelTurnTimer();
         gameService.getGame(roomId).cancelVoteTimer();
         gameService.getGame(roomId).cancelAnswerTimer();
@@ -166,6 +177,151 @@ class GameControllerTest {
     }
 
     @Test
+    public void 라운드를초과한세팅이면_게임시작에_실패한다() throws Exception {
+        //given
+
+        //when
+        String uuid = UUID.randomUUID().toString();
+
+        GameInfo.GameSettings settings = GameInfo.GameSettings.builder()
+                .round(6)
+                .turn(2)
+                .category(Arrays.asList("food", "sports"))
+                .build();
+        MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
+                .uuid(uuid)
+                .senderId(ownerId)
+                .message(new MessageContainer.Message(START_GAME, settings))
+                .build();
+        System.out.println("sendMessage : " + sendMessage);
+        TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+        StompSession.Subscription sub = stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler1);
+        stompSession.send(String.format("/publish/system/private/%s", roomId), objectMapper.writeValueAsString(sendMessage));
+
+        //then
+        MessageContainer message = handler1.getCompletableFuture().get(3, SECONDS);
+
+        LiarGameException expectedException = new NotAllowedActionException("Round can be 1 to 5");
+        MessageContainer expectMessage = MessageContainer.messageContainerBuilder()
+                .senderId("SERVER")
+                .message(new MessageContainer.Message(NOTIFY_GAME_STARTED,
+                        new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(expectedException.getCode(), expectedException.getMessage()))) {
+                        }))
+                .uuid(uuid)
+                .build();
+
+        System.out.println(message);
+        assertThat(message).isNotNull();
+        assertThat(message).isEqualTo(expectMessage);
+        sub.unsubscribe();
+    }
+
+    @Test
+    public void 스테이지를_잘못_설정하여_게임시작요청하면_예외처리한다() throws Exception {
+        //given
+
+        //when
+        String uuid = UUID.randomUUID().toString();
+
+        GameInfo.GameSettings settings = GameInfo.GameSettings.builder()
+                .round(6)
+                .turn(2)
+                .category(Arrays.asList("food", "sports"))
+                .build();
+        MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
+                .uuid(uuid)
+                .senderId(ownerId)
+                .message(new MessageContainer.Message(START_ROUND, settings))
+                .build();
+        System.out.println("sendMessage : " + sendMessage);
+        TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+        StompSession.Subscription sub = stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler1);
+        stompSession.send(String.format("/publish/system/private/%s", roomId), objectMapper.writeValueAsString(sendMessage));
+
+        //then
+        MessageContainer message = handler1.getCompletableFuture().get(3, SECONDS);
+        LiarGameException expectedException = new StateNotAllowedExpcetion("Current State is not BEFORE_ROUND");
+        MessageContainer expectMessage = MessageContainer.messageContainerBuilder()
+                .senderId("SERVER")
+                .message(new MessageContainer.Message(NOTIFY_ROUND_STARTED,
+                        new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(expectedException.getCode(), expectedException.getMessage()))) {
+                        }))
+                .uuid(uuid)
+                .build();
+
+        System.out.println(message);
+        assertThat(message).isNotNull();
+        assertThat(message).isEqualTo(expectMessage);
+        sub.unsubscribe();
+    }
+
+    @Test
+    public void 방장이아닌사람이_게임시작요청하면_예외처리한다() throws Exception {
+        //given
+
+        //when
+        String uuid = UUID.randomUUID().toString();
+
+        GameInfo.GameSettings settings = GameInfo.GameSettings.builder()
+                .round(5)
+                .turn(2)
+                .category(Arrays.asList("food", "sports"))
+                .build();
+        MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
+                .uuid(uuid)
+                .senderId("ownerId")
+                .message(new MessageContainer.Message(START_GAME, settings))
+                .build();
+        System.out.println("sendMessage : " + sendMessage);
+        TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+        StompSession.Subscription sub = stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler1);
+        stompSession.send(String.format("/publish/system/private/%s", roomId), objectMapper.writeValueAsString(sendMessage));
+
+        //then
+        assertThrows(TimeoutException.class, () -> {
+            handler1.getCompletableFuture().get(3, SECONDS);
+        });
+    }
+
+    @Test
+    public void 게임시작요청시_필수파라미터가없으면_예외처리한다() throws Exception {
+        //given
+
+        //when
+        String uuid = UUID.randomUUID().toString();
+
+        GameInfo.GameSettings settings = GameInfo.GameSettings.builder()
+                .round(5)
+                .category(Arrays.asList("food", "sports"))
+                .build();
+        MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
+                .uuid(uuid)
+                .senderId(ownerId)
+                .message(new MessageContainer.Message(START_GAME, settings))
+                .build();
+        System.out.println("sendMessage : " + sendMessage);
+        TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+        StompSession.Subscription sub = stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler1);
+        stompSession.send(String.format("/publish/system/private/%s", roomId), objectMapper.writeValueAsString(sendMessage));
+
+        //then
+        MessageContainer message = handler1.getCompletableFuture().get(3, SECONDS);
+        LiarGameException expectedException = new RequiredParameterMissingException("Game round, turn, and category field are required");
+        MessageContainer expectMessage = MessageContainer.messageContainerBuilder()
+                .senderId("SERVER")
+                .message(new MessageContainer.Message(NOTIFY_GAME_STARTED,
+                        new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(expectedException.getCode(), expectedException.getMessage()))) {
+                        }))
+                .uuid(uuid)
+                .build();
+
+        System.out.println(message);
+        assertThat(message).isNotNull();
+        assertThat(message).isEqualTo(expectMessage);
+        sub.unsubscribe();
+    }
+
+    @Test
     public void 라운드시작() throws Exception {
         __라운드시작();
         teardown();
@@ -176,7 +332,7 @@ class GameControllerTest {
         __게임시작();
         System.out.println("라운드시작=================================================================================================");
         TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
-        stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
+        StompSession.Subscription sub = stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
 
         String uuid = UUID.randomUUID().toString();
         __sendStartRound(uuid);
@@ -191,6 +347,7 @@ class GameControllerTest {
 
         assertThat(message).isNotNull();
         assertThat(message).isEqualTo(expectMessage);
+        sub.unsubscribe();
     }
 
     private void __sendStartRound(String uuid) throws JsonProcessingException {
@@ -220,11 +377,11 @@ class GameControllerTest {
         System.out.println("라이어선정=================================================================================================");
         //When
         String uuid = UUID.randomUUID().toString();
-        
+
         TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
-        stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler1);
         TestSingleStompHandler<MessageContainer> handler2 = new TestSingleStompHandler<>(MessageContainer.class);
-        sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/private/%s", sessionInfoList.get(0).guestId), handler2);
+        StompSession.Subscription sub = stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler1);
+        StompSession.Subscription sub2 = sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/private/%s", sessionInfoList.get(0).guestId), handler2);
 
         __sendSelectLiar(uuid);
 
@@ -258,6 +415,9 @@ class GameControllerTest {
             assertThat(messageToOwner.getMessage().getBody()).isEqualTo(new LiarResponse(GameState.OPEN_KEYWORD, false));
             assertThat(messageToUser.getMessage().getBody()).isEqualTo(new LiarResponse(GameState.OPEN_KEYWORD, true));
         }
+
+        sub.unsubscribe();
+        sub2.unsubscribe();
     }
 
     private void __sendSelectLiar(String uuid) throws JsonProcessingException {
@@ -267,7 +427,6 @@ class GameControllerTest {
                 .message(new MessageContainer.Message(Global.SELECT_LIAR, null))
                 .build();
         stompSession.send(String.format("/publish/system/private/%s", roomId), objectMapper.writeValueAsString(sendMessage));
-
     }
 
     @Test
@@ -282,16 +441,16 @@ class GameControllerTest {
         System.out.println("카테고리알림=================================================================================================");
         //When
         String uuid = UUID.randomUUID().toString();
-    
+
         TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
         TestSingleStompHandler<MessageContainer> handler2 = new TestSingleStompHandler<>(MessageContainer.class);
-        stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler1);
-        sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/private/%s", sessionInfoList.get(0).guestId), handler2);
+        StompSession.Subscription sub = stompSession.subscribe(String.format("/subscribe/system/private/%s", ownerId), handler1);
+        StompSession.Subscription sub2 = sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/private/%s", sessionInfoList.get(0).guestId), handler2);
 
         TestSingleStompHandler<MessageContainer> handler3 = new TestSingleStompHandler<>(MessageContainer.class);
         TestSingleStompHandler<MessageContainer> handler4 = new TestSingleStompHandler<>(MessageContainer.class);
-        stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler3);
-        sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler4);
+        StompSession.Subscription sub3 = stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler3);
+        StompSession.Subscription sub4 = sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler4);
 
         __SendOpenKeyword(uuid);
         MessageContainer messageToOwner = handler1.getCompletableFuture().get(5, SECONDS);
@@ -336,6 +495,10 @@ class GameControllerTest {
         assertThat(message2.getMessage().getMethod()).isEqualTo(Global.NOTIFY_TURN);
         assertThat(publicMessageToOwner.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(0));
         assertThat(publicMessageToUser.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(0));
+        sub.unsubscribe();
+        sub2.unsubscribe();
+        sub3.unsubscribe();
+        sub4.unsubscribe();
         return gameInfoResultFromOwner;
     }
 
@@ -363,8 +526,8 @@ class GameControllerTest {
 
         TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
         TestSingleStompHandler<MessageContainer> handler2 = new TestSingleStompHandler<>(MessageContainer.class);
-        stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
-        sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler2);
+        StompSession.Subscription sub = stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
+        StompSession.Subscription sub2 = sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler2);
 
         __sendRequestTurnFinished(gameService.getGame(roomId).getTurnOrder().get(0), uuid);
 
@@ -377,6 +540,8 @@ class GameControllerTest {
         assertThat(message2.getMessage().getMethod()).isEqualTo(Global.NOTIFY_TURN);
         assertThat(publicMessageToOwner.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(1));
         assertThat(publicMessageToUser.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(1));
+        sub.unsubscribe();
+        sub2.unsubscribe();
     }
 
     @Test
@@ -430,7 +595,7 @@ class GameControllerTest {
         //1번차례임
         requestTurnFinishedAndVerify(gameInfo, handler1, handler2,
                 gameInfo.getTurnOrder().get(1).equals(ownerId) ? stompSession : sessionInfoList.get(0).session, 0);
-        Thread.sleep(1000);
+        Thread.sleep(500);
         requestTurnFinishedAndVerify(gameInfo, handler1, handler2,
                 gameInfo.getTurnOrder().get(0).equals(ownerId) ? stompSession : sessionInfoList.get(0).session, 1);
 
@@ -454,9 +619,9 @@ class GameControllerTest {
                 .build();
 
         if (senderId.equals(ownerId)) {
-            stompSession.send(String.format("/publish/system/public/%s", roomId), objectMapper.writeValueAsString(sendMessage));
+            stompSession.send(String.format("/publish/system/private/%s", roomId), objectMapper.writeValueAsString(sendMessage));
         } else {
-            sessionInfoList.get(0).session.send(String.format("/publish/system/public/%s", roomId), objectMapper.writeValueAsString(sendMessage));
+            sessionInfoList.get(0).session.send(String.format("/publish/system/private/%s", roomId), objectMapper.writeValueAsString(sendMessage));
         }
     }
 
@@ -474,8 +639,10 @@ class GameControllerTest {
         //When
         TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
         TestStompHandlerChain<MessageContainer> handler2 = new TestStompHandlerChain<>(MessageContainer.class);
+        TestStompHandlerChain<MessageContainer> handler3 = new TestStompHandlerChain<>(MessageContainer.class);
         stompSession.subscribe(String.format("/subscribe/system/public/%s", roomId), handler1);
         sessionInfoList.get(0).session.subscribe(String.format("/subscribe/system/public/%s", roomId), handler2);
+        stompSession.subscribe(String.format("/subscribe/system/private/%s", roomId), handler3);
 
         String uuid = UUID.randomUUID().toString();
         String guestId = sessionInfoList.get(0).guestId;
@@ -501,13 +668,10 @@ class GameControllerTest {
         assertThat(message1.getSenderId()).isEqualTo(SERVER_ID);
         assertThat(message1.getMessage()).isEqualTo(expectMessage.getMessage());
 
-        //이게 왜 들어가있지?..
-//        message1 = handler1.getCompletableFuture(1);
-//        message2 = handler2.getCompletableFuture(1);
-//        expectMessage = Util.getExpectedMessageContainer(NOTIFY_LIAR_OPENED, new GameStateResponse(GameState.OPEN_LIAR));
-//        assertThat(message1).isEqualTo(message2);
-//        assertThat(message1.getSenderId()).isEqualTo(SERVER_ID);
-//        assertThat(message1.getMessage()).isEqualTo(expectMessage.getMessage());
+        message1 = handler3.getCompletableFuture(1);
+        expectMessage = Util.getExpectedMessageContainer(NOTIFY_LIAR_OPEN_REQUEST, new GameStateResponse(GameState.OPEN_LIAR));
+        assertThat(message1.getSenderId()).isEqualTo(SERVER_ID);
+        assertThat(message1.getMessage()).isEqualTo(expectMessage.getMessage());
     }
 
     @Test
@@ -528,7 +692,7 @@ class GameControllerTest {
         String liarDesignatedId = sessionInfoList.get(0).guestId;
         __sendVoteLiar(uuid, ownerId, liarDesignatedId);
 
-        Thread.sleep(2000);
+        Thread.sleep(4000);
         MessageContainer message1 = handler1.getCompletableFuture(-1);
         MessageContainer message2 = handler2.getCompletableFuture(-1);
         //Then
@@ -731,6 +895,7 @@ class GameControllerTest {
         LiarAnswerResponse expectResultLiarIsRoomOwner = LiarAnswerResponse.builder()
                 .answer(true)
                 .state(GameState.PUBLISH_SCORE)
+                .keyword(gameService.getGame(roomId).getCurrentRoundKeyword())
                 .build();
         MessageContainer expectMessageRoomOwner = Util.getExpectedMessageContainer(NOTIFY_LIAR_ANSWER_CORRECT, expectResultLiarIsRoomOwner);
 
@@ -786,6 +951,7 @@ class GameControllerTest {
         LiarAnswerResponse expectResultLiarIsRoomOwner = LiarAnswerResponse.builder()
                 .answer(false)
                 .state(GameState.PUBLISH_SCORE)
+                .keyword(gameService.getGame(roomId).getCurrentRoundKeyword())
                 .build();
         expectMessageRoomOwner = Util.getExpectedMessageContainer(NOTIFY_LIAR_ANSWER_CORRECT, expectResultLiarIsRoomOwner);
 
@@ -808,6 +974,7 @@ class GameControllerTest {
         LiarAnswerResponse expectResultLiarIsRoomOwner = LiarAnswerResponse.builder()
                 .answer(false)
                 .state(GameState.PUBLISH_SCORE)
+                .keyword(gameService.getGame(roomId).getCurrentRoundKeyword())
                 .build();
         MessageContainer expectMessageRoomOwner = Util.getExpectedMessageContainer(NOTIFY_LIAR_ANSWER_CORRECT, expectResultLiarIsRoomOwner);
 
@@ -965,7 +1132,8 @@ class GameControllerTest {
         }
     }
 
-    private void requestTurnFinishedAndVerify(GameInfo gameInfo, TestStompHandlerChain<MessageContainer> handler1, TestStompHandlerChain<MessageContainer> handler2, StompSession session, int i) throws InterruptedException, ExecutionException, TimeoutException {
+    private void requestTurnFinishedAndVerify(GameInfo gameInfo, TestStompHandlerChain<MessageContainer> handler1, TestStompHandlerChain<MessageContainer> handler2, StompSession session, int i)
+            throws InterruptedException, ExecutionException, TimeoutException, JsonProcessingException {
         String uuid = UUID.randomUUID().toString();
         MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
                 .uuid(uuid)
@@ -973,12 +1141,8 @@ class GameControllerTest {
                 .message(new MessageContainer.Message(Global.REQUEST_TURN_FINISH, null))
                 .build();
 
-        try {
-            session.send(String.format("/publish/system/public/%s", roomId), objectMapper.writeValueAsString(sendMessage));
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-        Thread.sleep(2000);
+        session.send(String.format("/publish/system/private/%s", roomId), objectMapper.writeValueAsString(sendMessage));
+        System.out.println("sendMessage : " + sendMessage);
         MessageContainer message1 = handler1.getCompletableFuture(0);
         MessageContainer message2 = handler2.getCompletableFuture(0);
 

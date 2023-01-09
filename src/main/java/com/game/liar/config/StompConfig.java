@@ -1,11 +1,14 @@
 package com.game.liar.config;
 
 import com.game.liar.event.PresenceEventListener;
+import com.game.liar.exception.MyStompChannelOutboundInterceptor;
+import com.game.liar.exception.StompErrorHandler;
 import com.game.liar.repository.ParticipantRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Description;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -18,6 +21,14 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class StompConfig implements WebSocketMessageBrokerConfigurer {
     private final String ENDPOINT = "/ws-connection";
     private final String CORS_PATTERN = "*";
+    private final StompErrorHandler stompErrorHandler;
+    private final MyStompChannelOutboundInterceptor channelOutboundInterceptor;
+
+    public StompConfig(StompErrorHandler stompErrorHandler, MyStompChannelOutboundInterceptor channelOutboundInterceptor) {
+        this.stompErrorHandler = stompErrorHandler;
+        this.channelOutboundInterceptor = channelOutboundInterceptor;
+    }
+
     /**
      * TODO: 다른 메세지브로커 사용할 수도 있음
      * memory 기반 simple message broker
@@ -33,6 +44,7 @@ public class StompConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint(ENDPOINT)
                 .setAllowedOriginPatterns(CORS_PATTERN)
                 .withSockJS();
+        registry.setErrorHandler(stompErrorHandler);
     }
 
     @Bean
@@ -45,5 +57,10 @@ public class StompConfig implements WebSocketMessageBrokerConfigurer {
     @Description("Keeps connected users")
     public ParticipantRepository participantRepository() {
         return new ParticipantRepository();
+    }
+
+    @Override
+    public void configureClientInboundChannel(ChannelRegistration registration) {
+        registration.interceptors(channelOutboundInterceptor);
     }
 }

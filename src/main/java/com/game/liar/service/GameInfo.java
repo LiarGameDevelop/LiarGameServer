@@ -203,7 +203,7 @@ public class GameInfo {
     }
 
     public void updateScoreBoard() {
-        if (getMostVotedUserIdAndCount().get(0).getKey().equals(liarId)) {
+        if (isUsersMatchLiar()) {
             //시민들이 라이어를 맞췄으면 시민들의 점수를 더한다.
             for (Map.Entry<String, Integer> item : scoreboard.entrySet()) {
                 if (!item.getKey().equals(liarId)) {
@@ -229,6 +229,12 @@ public class GameInfo {
         log.info("scoreBoard : {}", scoreboard);
     }
 
+    public boolean isUsersMatchLiar() {
+        if (getMostVotedUserIdAndCount() == null)
+            return false;
+        return getMostVotedUserIdAndCount().get(0).getKey().equals(liarId);
+    }
+
     public synchronized boolean voteFinished() {
         return voteCount == turnOrder.size();
     }
@@ -240,12 +246,11 @@ public class GameInfo {
                         .collect(Collectors.groupingBy(liar -> liar, Collectors.counting()));
         log.info("voteResult :{} from [{}]. counting :{}", voteResult, roomId, voteCountByDesignatedId);
         Optional<Map.Entry<String, Long>> optional = voteCountByDesignatedId.entrySet().stream().max(Map.Entry.comparingByValue());
-        if(optional.isPresent())
+        if (optional.isPresent())
             return voteCountByDesignatedId.entrySet().stream()
-                .filter(entry -> entry.getValue().longValue() == optional.get().getValue().longValue()).collect(Collectors.toList());
-        else{
+                    .filter(entry -> entry.getValue().longValue() == optional.get().getValue().longValue()).collect(Collectors.toList());
+        else
             return null;
-        }
     }
 
     public void resetLiarInfo() {

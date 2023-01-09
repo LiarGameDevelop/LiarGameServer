@@ -53,6 +53,8 @@ public class CustomDeserializer extends StdDeserializer<MessageBody> {
             return p.getCodec().treeToValue(node, GameStateResponse.class);
         } else if (node.get("keyword") != null) {
             return p.getCodec().treeToValue(node, KeywordRequest.class);
+        } else if (node.get("errorMessage") != null) {
+            return p.getCodec().treeToValue(node, ErrorResponse.class);
         }
         return null;
     }

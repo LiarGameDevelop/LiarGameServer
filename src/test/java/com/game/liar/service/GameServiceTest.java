@@ -14,6 +14,7 @@ import com.game.liar.dto.response.RankingsResponse;
 import com.game.liar.dto.response.ScoreboardResponse;
 import com.game.liar.exception.MaxCountException;
 import com.game.liar.exception.NotAllowedActionException;
+import com.game.liar.exception.RequiredParameterMissingException;
 import com.game.liar.exception.StateNotAllowedExpcetion;
 import com.game.liar.repository.RoomRepository;
 import com.game.liar.utils.ApplicationContextProvider;
@@ -155,7 +156,7 @@ class GameServiceTest {
                 .build();
 
         //Then
-        assertThrows(NullPointerException.class, () -> {
+        assertThrows(RequiredParameterMissingException.class, () -> {
             gameService.startGame(messageContainer, "room1");
         });
     }

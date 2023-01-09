@@ -6,7 +6,7 @@ import com.game.liar.dto.request.RoomIdUserIdRequest;
 import com.game.liar.dto.request.RoomIdRequest;
 import com.game.liar.dto.request.RoomIdUserNameRequest;
 import com.game.liar.dto.request.RoomInfoRequest;
-import com.game.liar.dto.response.RoomInfoResponseDto;
+import com.game.liar.dto.response.RoomInfoResponse;
 import com.game.liar.exception.MaxCountException;
 import com.game.liar.exception.NotExistException;
 import com.game.liar.repository.RoomRepository;
@@ -26,7 +26,7 @@ public class RoomService {
         this.repository = repository;
     }
 
-    public RoomInfoResponseDto create(RoomInfoRequest request) throws MaxCountException, NotExistException {
+    public RoomInfoResponse create(RoomInfoRequest request) throws MaxCountException, NotExistException {
         if (request.getMaxPersonCount() == null) {
             log.info("the number of room max count does not exist");
             request.setMaxPersonCount(MAX_COUNT_NUMBER);
@@ -36,13 +36,13 @@ public class RoomService {
             throw new NotExistException("Room name is required");
         }
         Room room = repository.create(request);
-        return new RoomInfoResponseDto(room);
+        return new RoomInfoResponse(room);
     }
 
-    public RoomInfoResponseDto getRoom(RoomIdRequest request) {
+    public RoomInfoResponse getRoom(RoomIdRequest request) {
         try {
             Room room = repository.getRoom(request);
-            return new RoomInfoResponseDto(room);
+            return new RoomInfoResponse(room);
         } catch (NullPointerException e) {
             throw new NotExistException("Request Room name does not exist");
         }
@@ -53,22 +53,22 @@ public class RoomService {
         return users.stream().map(User::getUserId).collect(Collectors.toList());
     }
 
-    public RoomInfoResponseDto deleteRoom(RoomIdUserIdRequest request) {
+    public RoomInfoResponse deleteRoom(RoomIdUserIdRequest request) {
         try {
             Room room = repository.deleteRoom(request);
-            return new RoomInfoResponseDto(room);
+            return new RoomInfoResponse(room);
         } catch (NullPointerException e) {
             throw new NotExistException("Request Room name does not exist");
         }
     }
 
-    public RoomInfoResponseDto addRoomMember(RoomIdUserNameRequest request) throws MaxCountException {
+    public RoomInfoResponse addRoomMember(RoomIdUserNameRequest request) throws MaxCountException {
         Room room = repository.addRoomMember(request);
-        return new RoomInfoResponseDto(room);
+        return new RoomInfoResponse(room);
     }
 
-    public RoomInfoResponseDto leaveRoomMember(RoomIdUserIdRequest request) {
+    public RoomInfoResponse leaveRoomMember(RoomIdUserIdRequest request) {
         Room room = repository.leaveRoomMember(request);
-        return new RoomInfoResponseDto(room);
+        return new RoomInfoResponse(room);
     }
 }
