@@ -12,7 +12,7 @@ import com.game.liar.exception.ErrorResult;
 import com.game.liar.exception.JsonDeserializeException;
 import com.game.liar.exception.LiarGameException;
 import com.game.liar.exception.NotAllowedActionException;
-import com.game.liar.service.GameInfo;
+import com.game.liar.domain.GameInfo;
 import com.game.liar.service.GameService;
 import lombok.Setter;
 import lombok.SneakyThrows;
@@ -250,6 +250,12 @@ public class GameController {
         __notifyGameEnd(roomId);
     };
 
+    ProcessGame getGameCategory = (request, roomId) -> {
+        GameCategoryResponse body = gameService.getGameCategory(roomId);
+        log.info("[API]getGameCategory response : {}", body);
+        sendPrivateMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_GAME_CATEGORY, body), request.getSenderId());
+    };
+
     private void __notifyLiarAnswerNeeded(String roomId) {
         GameInfo gameInfo = gameService.getGame(roomId);
         String liar = gameInfo.getLiarId();
@@ -296,6 +302,7 @@ public class GameController {
             put(Global.PUBLISH_RANKINGS, publishRankings);
             put(Global.GET_GATE_STATE, getGameState);
             put(Global.REQUEST_TURN_FINISH, requestTurnFinished);
+            put(Global.GET_GAME_CATEGORY, getGameCategory);
         }
     };
 

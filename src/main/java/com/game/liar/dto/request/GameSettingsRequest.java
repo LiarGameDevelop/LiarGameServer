@@ -1,9 +1,8 @@
 package com.game.liar.dto.request;
 
-import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.game.liar.dto.MessageBody;
-import com.game.liar.service.GameInfo;
+import com.game.liar.domain.GameInfo;
 import lombok.*;
 
 import java.util.List;

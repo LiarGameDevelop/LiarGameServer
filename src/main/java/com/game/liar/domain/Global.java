@@ -30,6 +30,7 @@ public class Global {
     public static final String NOTIFY_RANKINGS_PUBLISHED = "notifyRankingsPublished";
     public static final String NOTIFY_GAME_END = "notifyGameEnd";
     public static final String NOTIFY_GAME_STATE = "notifyGameState";
+    public static final String NOTIFY_GAME_CATEGORY = "notifyGameCategory";
     /**
      * Client -> Server method
      **/
@@ -46,6 +47,7 @@ public class Global {
     public static final String END_ROUND = "endRound";
     public static final String PUBLISH_RANKINGS = "publishRankings";
     public static final String GET_GATE_STATE = "getGameState";
+    public static final String GET_GAME_CATEGORY = "getGameCategory";
 
     //Common
     public static final String SERVER_ID = "SERVER";
@@ -66,5 +68,7 @@ public class Global {
         put(CHECK_KEYWORD_CORRECT, NOTIFY_LIAR_ANSWER_CORRECT);
         put(OPEN_SCORES, NOTIFY_SCORES);
         put(PUBLISH_RANKINGS, NOTIFY_RANKINGS_PUBLISHED);
+        put(GET_GATE_STATE,NOTIFY_GAME_STATE);
+        put(GET_GAME_CATEGORY,NOTIFY_GAME_CATEGORY);
     }};
 }

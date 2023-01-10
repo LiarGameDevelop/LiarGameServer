@@ -70,7 +70,7 @@ class ChattingControllerTest {
         stompSession.send("/publish/messages/12345", expectedMessage);
 
         //then
-        ChatMessageDto message = handler.getCompletableFuture().get(300, SECONDS);
+        ChatMessageDto message = handler.getCompletableFuture().get(3, SECONDS);
 
         assertThat(message).isNotNull();
         assertThat(message).isEqualTo(expectedMessage);

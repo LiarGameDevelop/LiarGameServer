@@ -1,6 +1,6 @@
 package com.game.liar.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.game.liar.domain.GameInfo;
 import com.game.liar.domain.GameState;
 import com.game.liar.domain.Global;
 import com.game.liar.domain.User;
@@ -362,6 +362,15 @@ public class GameService {
                 notVoteUserList.add(user.getUserId());
         }
         return notVoteUserList;
+    }
+
+    public GameCategoryResponse getGameCategory(String roomId) {
+        GameInfo gameInfo = gameManagerMap.get(roomId);
+
+        if (gameInfo == null) {
+            throw new NotExistException(String.format("There is no room. Room ID :%s", roomId));
+        }
+        return new GameCategoryResponse(gameInfo.getCategory());
     }
 
     public void cancelTurnTimer(String roomId) {
