@@ -3,27 +3,24 @@ package com.game.liar.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.game.liar.config.GameCategoryProperties;
-import com.game.liar.domain.GameState;
-import com.game.liar.domain.Global;
-import com.game.liar.domain.Room;
-import com.game.liar.domain.User;
+import com.game.liar.domain.*;
 import com.game.liar.dto.MessageContainer;
 import com.game.liar.dto.request.*;
+import com.game.liar.dto.response.GameCategoryResponse;
 import com.game.liar.dto.response.OpenLiarResponse;
 import com.game.liar.dto.response.RankingsResponse;
 import com.game.liar.dto.response.ScoreboardResponse;
-import com.game.liar.exception.MaxCountException;
-import com.game.liar.exception.NotAllowedActionException;
-import com.game.liar.exception.RequiredParameterMissingException;
-import com.game.liar.exception.StateNotAllowedExpcetion;
+import com.game.liar.exception.*;
 import com.game.liar.repository.RoomRepository;
 import com.game.liar.utils.ApplicationContextProvider;
+import com.game.liar.utils.BeanUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -34,7 +31,6 @@ class GameServiceTest {
     GameService gameService;
     @Autowired
     RoundService roundService;
-    ObjectMapper objectMapper = new ObjectMapper();
     @Autowired
     RoomRepository roomRepository;
 
@@ -61,6 +57,27 @@ class GameServiceTest {
 
         gameService.addMember(room.getRoomId(), new User(username, userId));
         return room;
+    }
+
+    @Test
+    public void 게임카테고리얻기() throws Exception {
+        //Given
+        gameService.addGame("room1", "tester1");
+
+        //When
+        GameCategoryResponse result = gameService.getGameCategory("room1");
+
+        //Then
+        System.out.println(result);
+        assertThat(result).isEqualTo(new GameCategoryResponse(new ArrayList<>(((GameCategoryProperties) BeanUtils.getBean(GameCategoryProperties.class)).getKeywords().keySet())));
+    }
+
+    @Test
+    public void 게임시작을안해서_게임카테고리얻기_실패Error() throws Exception {
+        //Given
+        //When
+        //Then
+        assertThrows(NotExistException.class,()->gameService.getGameCategory("room1"));
     }
 
     @Test
@@ -93,7 +110,6 @@ class GameServiceTest {
         assertThat(result.getSelectedByRoomOwnerCategory()).containsKey("food");
         assertThat(result.getSelectedByRoomOwnerCategory()).containsValues(Arrays.asList("pizza", "tteokbokki", "bibimbab", "chicken"));
         assertThat(result.getSelectedByRoomOwnerCategory()).doesNotContainKey("sports");
-
     }
 
     @Test

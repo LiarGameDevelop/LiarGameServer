@@ -24,7 +24,7 @@ public class CustomDeserializer extends StdDeserializer<MessageBody> {
     }
 
     @Override
-    public MessageBody deserialize(JsonParser p, DeserializationContext context) throws IOException, JacksonException {
+    public MessageBody deserialize(JsonParser p, DeserializationContext context) throws IOException {
         TreeNode node = p.readValueAsTree();
 
         if (node.get("answer") != null) {
@@ -37,8 +37,10 @@ public class CustomDeserializer extends StdDeserializer<MessageBody> {
             return p.getCodec().treeToValue(node, LiarDesignateRequest.class);
         } else if (node.get("turnOrder") != null) {
             return p.getCodec().treeToValue(node, OpenedGameInfo.class);
-        } else if (node.get("category") != null) {
+        } else if (node.get("category") != null && node.get("round") != null) {
             return p.getCodec().treeToValue(node, GameSettingsRequest.class);
+        } else if (node.get("category") != null) {
+            return p.getCodec().treeToValue(node, GameCategoryResponse.class);
         } else if (node.get("rankings") != null) {
             return p.getCodec().treeToValue(node, RankingsResponse.class);
         } else if (node.get("scoreboard") != null) {

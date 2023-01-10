@@ -1,4 +1,4 @@
-package com.game.liar.service;
+package com.game.liar.domain;
 
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
@@ -284,6 +284,12 @@ public class GameInfo {
                 selectedByRoomOwnerCategory.put(subject, predefinedKeywords);
             }
         }
+    }
+
+    public List<String> getCategory() {
+        if (gameCategoryProperties == null)
+            gameCategoryProperties = (GameCategoryProperties) BeanUtils.getBean(GameCategoryProperties.class);
+        return new ArrayList<>(gameCategoryProperties.getKeywords().keySet());
     }
 
     public void addCustomCategory(String subject, List<String> keywordList) {

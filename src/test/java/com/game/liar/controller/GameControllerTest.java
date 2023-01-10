@@ -14,8 +14,9 @@ import com.game.liar.dto.request.RoomIdUserNameRequest;
 import com.game.liar.dto.request.RoomInfoRequest;
 import com.game.liar.dto.response.*;
 import com.game.liar.exception.*;
-import com.game.liar.service.GameInfo;
+import com.game.liar.domain.GameInfo;
 import com.game.liar.service.GameService;
+import com.game.liar.utils.BeanUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -223,6 +224,39 @@ class GameControllerTest {
         assertThrows(TimeoutException.class, () -> handler2.getCompletableFuture().get(3, SECONDS));
         sub.unsubscribe();
         sub2.unsubscribe();
+    }
+
+    @Test
+    public void 게임카테고리를요청하면_reply한다() throws Exception {
+        //given
+        TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+        StompSession.Subscription sub = stompSession.subscribe(String.format("/subscribe/private/%s",ownerId), handler1);
+
+        //when
+        String uuid = UUID.randomUUID().toString();
+        MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
+                .uuid(uuid)
+                .senderId(ownerId)
+                .message(new MessageContainer.Message(GET_GAME_CATEGORY, null))
+                .build();
+        System.out.println("sendMessage : " + sendMessage);
+        stompSession.send(String.format("%s%s", PUBLISH_PRIVATE, roomId), objectMapper.writeValueAsString(sendMessage));
+
+        //then
+        MessageContainer message = handler1.getCompletableFuture().get(3, SECONDS);
+        MessageContainer expectMessage = MessageContainer.messageContainerBuilder()
+                .senderId("SERVER")
+                .message(new MessageContainer.Message(NOTIFY_GAME_CATEGORY,
+                        new GameCategoryResponse(new ArrayList<>((
+                                        (GameCategoryProperties) BeanUtils.getBean(GameCategoryProperties.class)).getKeywords().keySet())) {
+                        }))
+                .uuid(uuid)
+                .build();
+
+        System.out.println(message);
+        assertThat(message).isNotNull();
+        assertThat(message).isEqualTo(expectMessage);
+        sub.unsubscribe();
     }
 
     @Test
@@ -1230,10 +1264,15 @@ class GameControllerTest {
 
         @Override
         public void handleFrame(StompHeaders headers, Object payload) {
+            try {
+                Thread.sleep(300);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
             CompletableFuture<T> future = new CompletableFuture<>();
             future.complete((T) payload);
             completableFuture.offer(future);
-            //System.out.println(LocalDateTime.now() + ":[TestStompHandlerChain] handleFrame headers: " + headers + ", payload: " + payload + ", completableFuture.size() :" + completableFuture.size());
+            System.out.println(LocalDateTime.now() + ":[TestStompHandlerChain] handleFrame headers: " + headers + ", payload: " + payload + ", completableFuture.size() :" + completableFuture.size());
         }
     }
 
