@@ -57,6 +57,7 @@ class ChattingControllerTest {
     @AfterEach
     void clear(){
         chatRepository.deleteAll();
+        chatRepository.flush();
     }
 
     @Test
@@ -71,6 +72,7 @@ class ChattingControllerTest {
 
         //then
         ChatMessageDto message = handler.getCompletableFuture().get(3, SECONDS);
+        chatRepository.flush();
 
         assertThat(message).isNotNull();
         assertThat(message).isEqualTo(expectedMessage);
@@ -94,6 +96,7 @@ class ChattingControllerTest {
 
         //then
         ChatMessageDto message = handler.getCompletableFuture().get(3, SECONDS);
+        chatRepository.flush();
         assertThat(stompSession).isNotNull();
         assertThat(message).isNotNull();
         assertThat(message).isEqualTo(expectedMessage);

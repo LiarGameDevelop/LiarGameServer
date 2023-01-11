@@ -32,7 +32,7 @@ public class RoomController {
     private GameController gameController;
 
     @PostMapping("/room")
-    public RoomInfoResponse create(@Valid @RequestBody RoomInfoRequest request, HttpServletRequest httpRequest) throws MaxCountException {
+    public RoomEnterInfoResponse create(@Valid @RequestBody RoomInfoRequest request, HttpServletRequest httpRequest) throws MaxCountException {
         log.info("request :" + request + ", ip :" + getClientIp(httpRequest));
         RoomInfoResponse response = roomService.create(request);
         if (response != null) {
@@ -40,7 +40,8 @@ public class RoomController {
             gameController.addMember(response.getRoomId(), response.getUserList().get(response.getUserList().size() - 1));
             log.info("[Create] [room:{}]", response);
         }
-        return response;
+        User newUser = response.getUserList().get(response.getUserList().size() - 1);
+        return new RoomEnterInfoResponse(response, newUser);
     }
 
     @GetMapping("/room")

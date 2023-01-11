@@ -40,8 +40,9 @@ public class RoomRepository {
         room.setOwnerName(request.getOwnerName());
         room.setOwnerId(ownerId);
         room.setMaxCount(request.getMaxPersonCount());
+        User newUser = new User(request.getOwnerName(), ownerId);
 
-        room.addMember(new User(request.getOwnerName(), ownerId));
+        room.addMember(newUser);
         users.add(ownerId);
         log.info("Created Room : {}", room);
         return room;

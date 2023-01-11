@@ -21,6 +21,8 @@ public class RoomInfoResponse {
     private String roomId;
     private int personCount;
 
+    private User user;
+
     private List<User> userList;
 
     public RoomInfoResponse(Room room) {

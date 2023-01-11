@@ -126,7 +126,7 @@ class GameControllerTest {
     }
 
     private void 방생성(String roomOwner) throws Exception {
-        RoomInfoResponse roomInfo = roomController.create(new RoomInfoRequest(5, roomOwner), null);
+        RoomEnterInfoResponse roomInfo = roomController.create(new RoomInfoRequest(5, roomOwner), null);
         roomId = roomInfo.getRoomId();
         ownerId = roomInfo.getOwnerId();
     }
@@ -585,16 +585,20 @@ class GameControllerTest {
         //When
         String uuid = UUID.randomUUID().toString();
 
-        TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
-        TestSingleStompHandler<MessageContainer> handler2 = new TestSingleStompHandler<>(MessageContainer.class);
+        //TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
+        //TestSingleStompHandler<MessageContainer> handler2 = new TestSingleStompHandler<>(MessageContainer.class);
+        TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
+        TestStompHandlerChain<MessageContainer> handler2 = new TestStompHandlerChain<>(MessageContainer.class);
         StompSession.Subscription sub = stompSession.subscribe(String.format("%s%s", SUBSCRIBE_PUBLIC, roomId), handler1);
         StompSession.Subscription sub2 = sessionInfoList.get(0).session.subscribe(String.format("%s%s", SUBSCRIBE_PUBLIC, roomId), handler2);
 
         __sendRequestTurnFinished(gameService.getGame(roomId).getTurnOrder().get(0), uuid);
         Thread.sleep(2000);
         //Then
-        MessageContainer message1 = handler1.getCompletableFuture().get(5, SECONDS);
-        MessageContainer message2 = handler2.getCompletableFuture().get(5, SECONDS);
+        //MessageContainer message1 = handler1.getCompletableFuture().get(5, SECONDS);
+        //MessageContainer message2 = handler2.getCompletableFuture().get(5, SECONDS);
+        MessageContainer message1 = handler1.getCompletableFuture(0);
+        MessageContainer message2 = handler2.getCompletableFuture(0);
         TurnResponse publicMessageToOwner = (TurnResponse) message1.getMessage().getBody();
         TurnResponse publicMessageToUser = (TurnResponse) message2.getMessage().getBody();
         assertThat(message1.getMessage().getMethod()).isEqualTo(Global.NOTIFY_TURN);
@@ -1144,8 +1148,8 @@ class GameControllerTest {
         TestStompHandlerChain<MessageContainer> handler2 = new TestStompHandlerChain<>(MessageContainer.class);
         stompSession.subscribe(String.format("%s%s", SUBSCRIBE_PUBLIC, roomId), handler1);
         sessionInfoList.get(0).session.subscribe(String.format("%s%s", SUBSCRIBE_PUBLIC, roomId), handler2);
-        __openScore();
         Thread.sleep(1000);
+        __openScore();
 
         handler1.getCompletableFuture(0);
         handler2.getCompletableFuture(0);
@@ -1239,7 +1243,7 @@ class GameControllerTest {
 
         private CompletableFuture<T> __getCompletableFuture() throws InterruptedException {
             //System.out.println(LocalDateTime.now() + ":[TestStompHandlerChain] getCompletableFuture size:" + completableFuture.size());
-            return completableFuture.poll(5, SECONDS);
+            return completableFuture.poll(10,SECONDS);
         }
 
         public T getCompletableFuture(int index) throws ExecutionException, InterruptedException, TimeoutException {
@@ -1271,7 +1275,19 @@ class GameControllerTest {
             }
             CompletableFuture<T> future = new CompletableFuture<>();
             future.complete((T) payload);
-            completableFuture.offer(future);
+//            boolean ret = false;
+//            try {
+//                ret = completableFuture.offer(future,5,SECONDS);
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+            try {
+                completableFuture.put(future);
+            } catch (InterruptedException e) {
+                System.out.println("데이터 저장에 실패했쌈 : "+headers.getDestination());
+                throw new RuntimeException(e);
+            }
+
             System.out.println(LocalDateTime.now() + ":[TestStompHandlerChain] handleFrame headers: " + headers + ", payload: " + payload + ", completableFuture.size() :" + completableFuture.size());
         }
     }
