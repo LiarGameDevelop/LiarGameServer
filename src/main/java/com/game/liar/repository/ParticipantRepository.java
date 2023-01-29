@@ -1,6 +1,6 @@
 package com.game.liar.repository;
 
-import com.game.liar.event.LoginEvent;
+import com.game.liar.common.event.LoginEvent;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;

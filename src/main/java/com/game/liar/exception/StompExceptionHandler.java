@@ -20,7 +20,6 @@ public class StompExceptionHandler {
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.ERROR);
 
         accessor.setMessage(String.valueOf(clientMessage));
-        //accessor.setLeaveMutable(true);
 
         return MessageBuilder.createMessage(ex.getMessage().getBytes(StandardCharsets.UTF_8), accessor.getMessageHeaders());
     }
