@@ -23,7 +23,7 @@ public class ChattingService {
     private ChatRepository chatRepository;
 
     public void save(ChatMessageDto message, String roomId) {
-        //chatRepository.save(message.toEntity(roomId));
+        chatRepository.save(message.toEntity(roomId));
         log.info("message : {}", message);
     }
 }

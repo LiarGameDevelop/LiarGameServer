@@ -18,6 +18,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.Collections;
 
 @Configuration
 @RequiredArgsConstructor
@@ -45,8 +46,8 @@ public class SecurityConfig {
                     .headers()
                     .frameOptions()
                     .sameOrigin()
-                //.and()
-                //.cors().configurationSource(corsConfigurationSource())
+                .and()
+                .cors().configurationSource(corsConfigurationSource())
 
 
                 // 시큐리티는 기본적으로 세션을 사용
@@ -77,7 +78,7 @@ public class SecurityConfig {
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("*"));
+        configuration.setAllowedOriginPatterns(Collections.singletonList("*"));
         configuration.setAllowedMethods(Arrays.asList("HEAD", "GET", "POST", "PUT"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
         configuration.setAllowCredentials(true);

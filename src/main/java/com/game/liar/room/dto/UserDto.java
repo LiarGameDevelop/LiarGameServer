@@ -12,6 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 @Slf4j
 @Setter
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
 @ToString
 public class UserDto {

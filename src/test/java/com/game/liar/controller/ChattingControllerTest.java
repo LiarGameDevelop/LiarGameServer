@@ -1,141 +1,81 @@
 package com.game.liar.controller;
 
-import com.game.liar.game.domain.Global;
+import com.game.liar.Util;
 import com.game.liar.chat.domain.ChatMessageDto;
 import com.game.liar.chat.repository.ChatRepository;
+import com.game.liar.game.domain.Global;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.messaging.converter.MappingJackson2MessageConverter;
-import org.springframework.messaging.simp.stomp.StompFrameHandler;
-import org.springframework.messaging.simp.stomp.StompHeaders;
-import org.springframework.messaging.simp.stomp.StompSession;
-import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
-import org.springframework.web.socket.client.standard.StandardWebSocketClient;
-import org.springframework.web.socket.messaging.WebSocketStompClient;
-import org.springframework.web.socket.sockjs.client.SockJsClient;
-import org.springframework.web.socket.sockjs.client.Transport;
-import org.springframework.web.socket.sockjs.client.WebSocketTransport;
+import org.springframework.test.web.servlet.MockMvc;
 
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
+import static com.game.liar.Util.createStompObj;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
 class ChattingControllerTest {
     @LocalServerPort
     private Integer port;
-    WebSocketStompClient stompClient;
-    StompSession stompSession;
-
     @Autowired
     ChatRepository chatRepository;
-
-    @BeforeEach
-    void init() throws ExecutionException, InterruptedException, TimeoutException {
-        stompClient = new WebSocketStompClient(new SockJsClient(createTransportClient()));
-        stompClient.setMessageConverter(new MappingJackson2MessageConverter());
-        stompSession = stompClient.connect("ws://localhost:" + port + "/ws-connection", new StompSessionHandlerAdapter() {
-        }).get(3, SECONDS);
-
-        assertThat(stompSession).isNotNull();
-    }
+    @Autowired
+    private MockMvc mockMvc;
 
     @AfterEach
-    void clear(){
-        //chatRepository.deleteAll();
-        //chatRepository.flush();
+    void clear() {
+        chatRepository.deleteAll();
     }
 
-    //@Test
+    @Test
     public void 채팅채널에_메세지를보내면_메세지를받고_db에저장된다() throws Exception {
         //given
-        PrivateStompHandler<ChatMessageDto> handler = new PrivateStompHandler<>(ChatMessageDto.class);
-        stompSession.subscribe("/subscribe/room/12345/chat", handler);
+        Util.TestStompObject obj1 = createStompObj(mockMvc,port);
+        Util.PrivateStompHandler<ChatMessageDto> handler = new Util.PrivateStompHandler<>(ChatMessageDto.class);
+        obj1.subscribe(handler, String.format("/subscribe/room/%s/chat", obj1.getRoomInfo().getRoom().getRoomId()));
 
         //when
         ChatMessageDto expectedMessage = new ChatMessageDto("abc", "hello", Global.MessageType.MESSAGE);
-        stompSession.send("/publish/messages/12345", expectedMessage);
+        obj1.getStompSession().send(String.format("/publish/messages/%s", obj1.getRoomInfo().getRoom().getRoomId()), expectedMessage);
 
         //then
-        ChatMessageDto message = handler.getCompletableFuture().get(3, SECONDS);
-        //chatRepository.flush();
+        ChatMessageDto message = handler.getCompletableFuture().get(10, SECONDS);
 
         assertThat(message).isNotNull();
         assertThat(message).isEqualTo(expectedMessage);
-        //System.out.println(chatRepository.findAll());
-        //assertThat(chatRepository.findAll().size()).isEqualTo(1);
+        System.out.println(chatRepository.findAll());
+        assertThat(chatRepository.findAll().size()).isEqualTo(1);
     }
 
-    //@Test
+    @Test
     public void 채팅서비스_여러개_서로_간섭하지않아야한다() throws Exception {
-        stompSession = createStompSession();
-        StompSession stompSession1 = createStompSession();
+        Util.TestStompObject obj1 = createStompObj(mockMvc,port);
+        Util.TestStompObject obj2 = createStompObj(mockMvc,port);
         //given
-        PrivateStompHandler<ChatMessageDto> handler = new PrivateStompHandler<>(ChatMessageDto.class);
-        stompSession.subscribe("/subscribe/room/12345/chat", handler);
+        Util.PrivateStompHandler<ChatMessageDto> handler = new Util.PrivateStompHandler<>(ChatMessageDto.class);
+        obj1.subscribe(handler, String.format("/subscribe/room/%s/chat", obj1.getRoomInfo().getRoom().getRoomId()));
+
         ChatMessageDto expectedMessage = new ChatMessageDto("abc", "hello", Global.MessageType.MESSAGE);
-        stompSession.send("/publish/messages/12345", expectedMessage);
+        obj1.getStompSession().send(String.format("/publish/messages/%s", obj1.getRoomInfo().getRoom().getRoomId()), expectedMessage);
 
         //when
-        PrivateStompHandler<ChatMessageDto> handler2 = new PrivateStompHandler<>(ChatMessageDto.class);
-        stompSession1.subscribe("/subscribe/room/12346/chat", handler2);
+        Util.PrivateStompHandler<ChatMessageDto> handler2 = new Util.PrivateStompHandler<>(ChatMessageDto.class);
+        obj2.subscribe(handler2, String.format("/subscribe/room/%s/chat", obj2.getRoomInfo().getRoom().getRoomId()));
 
         //then
-        ChatMessageDto message = handler.getCompletableFuture().get(3, SECONDS);
-        //chatRepository.flush();
-        assertThat(stompSession).isNotNull();
+        ChatMessageDto message = handler.getCompletableFuture().get(10, SECONDS);
+        assertThat(obj1.getStompSession()).isNotNull();
+        assertThat(obj2.getStompSession()).isNotNull();
         assertThat(message).isNotNull();
         assertThat(message).isEqualTo(expectedMessage);
 
         assertThrows(TimeoutException.class, () -> handler2.getCompletableFuture().get(3, SECONDS));
-    }
-
-    private StompSession createStompSession() throws ExecutionException, InterruptedException, TimeoutException {
-        WebSocketStompClient client = new WebSocketStompClient(new SockJsClient(createTransportClient()));
-        client.setMessageConverter(new MappingJackson2MessageConverter());
-        StompSession stompSession = client.connect("ws://localhost:" + port + "/ws-connection", new StompSessionHandlerAdapter() {
-        }).get(3, SECONDS);
-        return stompSession;
-    }
-
-    private List<Transport> createTransportClient() {
-        List<Transport> transports = new ArrayList<>(1);
-        transports.add(new WebSocketTransport(new StandardWebSocketClient()));
-        return transports;
-    }
-
-    private class PrivateStompHandler<T> implements StompFrameHandler {
-        private final CompletableFuture<T> completableFuture = new CompletableFuture<>();
-
-        public CompletableFuture<T> getCompletableFuture() {
-            return completableFuture;
-        }
-
-        private final Class<T> tClass;
-
-        public PrivateStompHandler(Class<T> tClass) {
-            this.tClass = tClass;
-        }
-
-        @Override
-        public Type getPayloadType(StompHeaders headers) {
-            return this.tClass;
-        }
-
-        @Override
-        public void handleFrame(StompHeaders headers, Object payload) {
-            completableFuture.complete((T) payload);
-        }
     }
 }
