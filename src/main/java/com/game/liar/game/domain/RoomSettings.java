@@ -1,5 +1,6 @@
 package com.game.liar.game.domain;
 
+import io.swagger.annotations.ApiModelProperty;
 import lombok.ToString;
 
 import javax.persistence.Column;
@@ -12,6 +13,7 @@ public class RoomSettings {
     }
 
     @Column
+    @ApiModelProperty(example = "5")
     private int maxCount;
 
     public RoomSettings(int maxCount) {
