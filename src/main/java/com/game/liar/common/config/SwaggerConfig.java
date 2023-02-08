@@ -21,7 +21,7 @@ public class SwaggerConfig {
         return new Docket(DocumentationType.SWAGGER_2)
                 .apiInfo(apiInfo())
                 .select()
-                .apis(RequestHandlerSelectors.basePackage("com.game.liar.room"))
+                .apis(RequestHandlerSelectors.basePackage("com.game.liar"))
                 .paths(PathSelectors.any())
                 .build();
     }

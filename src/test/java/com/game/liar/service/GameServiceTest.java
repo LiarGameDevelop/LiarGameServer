@@ -16,11 +16,10 @@ import com.game.liar.game.dto.response.OpenLiarResponse;
 import com.game.liar.game.dto.response.RankingsResponse;
 import com.game.liar.game.dto.response.ScoreboardResponse;
 import com.game.liar.game.service.GameService;
+import com.game.liar.game.service.GameSubjectService;
 import com.game.liar.room.dto.*;
 import com.game.liar.room.service.RoomService;
 import com.game.liar.security.dto.TokenDto;
-import com.game.liar.utils.ApplicationContextProvider;
-import com.game.liar.utils.BeanUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,11 +41,9 @@ class GameServiceTest {
     @Mock
     RoomService roomService;
     @Mock
+    GameSubjectService gameSubjectService;
+    @Mock
     GameCategoryProperties gameCategoryProperties;
-    @Mock
-    ApplicationContextProvider applicationContextProvider;
-    @Mock
-    BeanUtils beanUtils;
 
     @AfterEach
     public void init() {
@@ -69,7 +66,7 @@ class GameServiceTest {
 
     private EnterRoomResponse __createRoom(String name) throws MaxCountException {
         when(roomService.create(any())).thenReturn(EnterRoomResponse.builder()
-                .room(new RoomDto("room", name, new RoomSettings(5)))
+                .room(new RoomDto("60ff79a6-a568-11ed-b9df-0242ac120003", name, new RoomSettings(5)))
                 .token(new TokenDto("", "", "", 1L))
                 .user(new UserDto(name, "owner", "password"))
                 .build());
@@ -83,31 +80,40 @@ class GameServiceTest {
         return room;
     }
 
-    //@Test
+    @Test
     public void 게임카테고리얻기() throws Exception {
         //Given
         gameService.addGame("room", "owner");
+        when(gameSubjectService.getAllCategory()).thenReturn(Arrays.asList("animal", "sports"));
 
         //When
         GameCategoryResponse result = gameService.getGameCategory("room");
 
         //Then
         System.out.println(result);
-        assertThat(result).isEqualTo(new GameCategoryResponse(new ArrayList<>(((GameCategoryProperties) BeanUtils.getBean(GameCategoryProperties.class)).getKeywords().keySet())));
+        assertThat(result.getCategory()).isNotEmpty();
+        assertThat(result.getCategory()).contains("animal", "sports");
     }
 
-    //@Test
+    @Test
     public void 게임시작을안해서_게임카테고리얻기_실패Error() throws Exception {
         //Given
         //When
         //Then
-        assertThrows(NotExistException.class, () -> gameService.getGameCategory("room"));
+        assertThrows(NotExistException.class, () -> gameService.getGameCategory("animal"));
     }
 
-    //@Test
+    @Test
     public void 게임시작() throws Exception {
         //Given
         GameInfo gameInfo = gameService.addGame("room", "owner");
+        when(gameSubjectService.getAllCategory()).thenReturn(Arrays.asList("food", "place"));
+        when(gameSubjectService.getAllSubject()).thenReturn(new HashMap<String, List<String>>() {
+            {
+                put("food", Arrays.asList("pizza", "tteokbokki", "bibimbab", "chicken"));
+                put("place", Arrays.asList("caffee", "stadium", "school"));
+            }
+        });
 
         //When
         GameSettingsRequest request = GameSettingsRequest.builder()
@@ -133,10 +139,10 @@ class GameServiceTest {
         assertThat(result.getTurn()).isEqualTo(-1);
         assertThat(result.getSelectedByRoomOwnerCategory()).containsKey("food");
         assertThat(result.getSelectedByRoomOwnerCategory()).containsValues(Arrays.asList("pizza", "tteokbokki", "bibimbab", "chicken"));
-        assertThat(result.getSelectedByRoomOwnerCategory()).doesNotContainKey("sports");
+        assertThat(result.getSelectedByRoomOwnerCategory()).doesNotContainKey("place");
     }
 
-    //@Test
+    @Test
     public void 게임시작_잘못된라운드수Error() throws Exception {
         //Given
         GameInfo gameInfo = gameService.addGame("room", "owner");
@@ -158,7 +164,7 @@ class GameServiceTest {
         });
     }
 
-    //@Test
+    @Test
     public void 게임시작_잘못된턴수Error() throws Exception {
         //Given
         GameInfo gameInfo = gameService.addGame("room", "owner");
@@ -180,7 +186,7 @@ class GameServiceTest {
         });
     }
 
-    //@Test
+    @Test
     public void 게임시작_라운드수없음Error() throws Exception {
         //Given
         GameInfo gameInfo = gameService.addGame("room", "owner");
@@ -201,7 +207,7 @@ class GameServiceTest {
         });
     }
 
-    //@Test
+    @Test
     public void 방장아닌사람이_게임시작Error() throws Exception {
         //Given
         GameInfo gameInfo = gameService.addGame("room", "owner");
@@ -224,7 +230,7 @@ class GameServiceTest {
     }
 
 
-    //@Test
+    @Test
     public void 라운드시작() throws Exception {
         //Given
         GameInfo gameInfo = gameService.addGame("room", "owner");
@@ -234,7 +240,6 @@ class GameServiceTest {
                 .category(Arrays.asList("food"))
                 .build();
         __startGame("owner", "room", request);
-        MessageContainer messageContainer;
 
         //when
         __startRound("owner", "room");
@@ -245,7 +250,7 @@ class GameServiceTest {
         assertThat(gameInfo.getState()).isEqualTo(GameState.SELECT_LIAR);
     }
 
-    //@Test
+    @Test
     public void 라운드초과Error() throws Exception {
         //Given
         GameInfo gameInfo = gameService.addGame("room", "owner");
@@ -272,7 +277,7 @@ class GameServiceTest {
         assertThrows(StateNotAllowedExpcetion.class, () -> gameService.startRound(finalMessageContainer, "room"));
     }
 
-    //@Test
+    @Test
     public void 라이어선정() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -302,7 +307,16 @@ class GameServiceTest {
         gameService.startRound(messageContainer, roomId);
     }
 
-    private void __startGame(String roomOwnerId, String roomId, GameSettingsRequest gameSettings) throws JsonProcessingException {
+    private void __startGame(String roomOwnerId, String roomId, GameSettingsRequest gameSettings) {
+        when(gameSubjectService.getAllCategory()).thenReturn(Arrays.asList("food", "place", "sports", "celebrity"));
+        when(gameSubjectService.getAllSubject()).thenReturn(new HashMap<String, List<String>>() {
+            {
+                put("food", Arrays.asList("pizza", "tteokbokki", "bibimbab", "chicken"));
+                put("place", Arrays.asList("caffee", "stadium", "school"));
+                put("sports", Arrays.asList("baseball", "soccer"));
+                put("celebrity", Arrays.asList("IU", "GD"));
+            }
+        });
         MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", gameSettings))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
@@ -310,7 +324,17 @@ class GameServiceTest {
         gameService.startGame(messageContainer, roomId);
     }
 
-    private void __startGame(String roomOwnerId, String roomId) throws JsonProcessingException {
+    private void __startGame(String roomOwnerId, String roomId) {
+        when(gameSubjectService.getAllCategory()).thenReturn(Arrays.asList("food", "place", "sports", "celebrity"));
+        when(gameSubjectService.getAllSubject()).thenReturn(new HashMap<String, List<String>>() {
+            {
+                put("food", Arrays.asList("pizza", "tteokbokki", "bibimbab", "chicken"));
+                put("place", Arrays.asList("caffee", "stadium", "school"));
+                put("sports", Arrays.asList("baseball", "soccer"));
+                put("celebrity", Arrays.asList("IU", "GD"));
+            }
+        });
+
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
@@ -323,7 +347,7 @@ class GameServiceTest {
         gameService.startGame(messageContainer, roomId);
     }
 
-    //@Test
+    @Test
     public void 라이어선정_방장아님Error() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -349,7 +373,7 @@ class GameServiceTest {
         });
     }
 
-    //@Test
+    @Test
     public void 라이어선정_StateError() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -376,7 +400,7 @@ class GameServiceTest {
         });
     }
 
-    //@Test
+    @Test
     public void 키워드공개() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -407,6 +431,7 @@ class GameServiceTest {
     }
 
     private void __selectLiar(String roomOwnerId, String roomId) {
+        when(roomService.getUsersId(any())).thenReturn(Arrays.asList("owner", "guest"));
         MessageContainer messageContainer;
         messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.SELECT_LIAR, null))
                 .senderId(roomOwnerId)
@@ -415,7 +440,7 @@ class GameServiceTest {
         gameService.selectLiar(messageContainer, roomId);
     }
 
-    //@Test
+    @Test
     public void 턴알림() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -440,7 +465,7 @@ class GameServiceTest {
         assertThat(gameInfo.getCurrentTurnId()).isEqualTo(turnOrder.get(1));
     }
 
-    //@Test
+    @Test
     public void 설명종료() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -462,7 +487,7 @@ class GameServiceTest {
         assertThat(gameInfo.getState().toString()).isEqualTo("VOTE_LIAR");
     }
 
-    //@Test
+    @Test
     public void 현재턴이아닌사람의_턴알림_Error() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -486,7 +511,7 @@ class GameServiceTest {
         });
     }
 
-    //@Test
+    @Test
     public void 턴초과_Error() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -515,7 +540,7 @@ class GameServiceTest {
         });
     }
 
-    //@Test
+    @Test
     public void 라이어투표() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -549,7 +574,7 @@ class GameServiceTest {
         assertThat(gameInfo.getMostVotedUserIdAndCount()).isEqualTo(Arrays.asList(new AbstractMap.SimpleEntry<>(guestId, 2L)));
     }
 
-    //@Test
+    @Test
     public void 라이어모두투표안했을때_() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -583,7 +608,7 @@ class GameServiceTest {
         assertThat(gameInfo.getMostVotedUserIdAndCount()).isEqualTo(null);
     }
 
-    //@Test
+    @Test
     public void 라이어투표_동표() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -616,7 +641,7 @@ class GameServiceTest {
         assertThat(gameInfo.getMostVotedUserIdAndCount()).containsAll(Arrays.asList(new AbstractMap.SimpleEntry<>(guestId, 1L), new AbstractMap.SimpleEntry<>(roomOwnerId, 1L)));
     }
 
-    //@Test
+    @Test
     public void 라이어투표_StateError() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -646,7 +671,7 @@ class GameServiceTest {
         });
     }
 
-    //@Test
+    @Test
     public void 라이어투표_재투표Error() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -679,7 +704,7 @@ class GameServiceTest {
         });
     }
 
-    //@Test
+    @Test
     public void 라이어발표() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -729,7 +754,7 @@ class GameServiceTest {
         assertThat(gameInfo.getLiarId()).isNull();
     }
 
-    //@Test
+    @Test
     public void 라이어발표_방장아닌사람의요청Error() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -766,7 +791,7 @@ class GameServiceTest {
         gameService.voteLiar(messageContainer, roomId);
     }
 
-    //@Test
+    @Test
     public void 라이어발표_StateError() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -795,7 +820,7 @@ class GameServiceTest {
                 .build(), roomId));
     }
 
-    //@Test
+    @Test
     public void 라이어가_정답맞췄는지요청() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -844,7 +869,7 @@ class GameServiceTest {
         gameService.openKeyword(messageContainer, roomId);
     }
 
-    //@Test
+    @Test
     public void 라이어가_정답요청했으나_정답틀림() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -880,7 +905,7 @@ class GameServiceTest {
         assertThat(gameInfo.isLiarAnswer()).isEqualTo(false);
     }
 
-    //@Test
+    @Test
     public void 라운드종료후_점수확인_게스트1라이어_라이어맞춤_라이어정답맞춤() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -926,7 +951,7 @@ class GameServiceTest {
         assertThat(scoreBoardResponse.getScoreboard()).isEqualTo(expectedScores.getScoreboard());
     }
 
-    //@Test
+    @Test
     public void 라운드종료후_점수확인_게스트1라이어_라이어맞춤_라이어정답틀림() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -971,7 +996,7 @@ class GameServiceTest {
         assertThat(scoreBoardResponse.getScoreboard()).isEqualTo(expectedScores.getScoreboard());
     }
 
-    //@Test
+    @Test
     public void 라운드종료후_점수확인_게스트1라이어_라이어틀림_라이어정답맞춤() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -1016,7 +1041,7 @@ class GameServiceTest {
         assertThat(scoreBoardResponse.getScoreboard()).isEqualTo(expectedScores.getScoreboard());
     }
 
-    //@Test
+    @Test
     public void 라운드종료후_점수확인_게스트1라이어_라이어틀림_라이어정답틀림() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -1080,7 +1105,7 @@ class GameServiceTest {
         return scoreBoardResponse;
     }
 
-    //@Test
+    @Test
     public void 라운드종료요청했을때_전체라운드가끝나지않았으면_라운드시작요청으로다시돌아간다() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -1125,7 +1150,7 @@ class GameServiceTest {
         assertThat(gameInfo.getState()).isEqualTo(GameState.BEFORE_ROUND);
     }
 
-    //@Test
+    @Test
     public void 라운드종료요청했을때_전체라운드가끝났으면_게임이종료된다() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
@@ -1174,7 +1199,7 @@ class GameServiceTest {
         assertThat(gameInfo.getState()).isEqualTo(GameState.PUBLISH_RANKINGS);
     }
 
-    //@Test
+    @Test
     public void 순위알림요청이오면_순위를알려준다() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");

@@ -2,12 +2,8 @@ package com.game.liar.game.domain;
 
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.game.liar.game.config.GameCategoryProperties;
-import com.game.liar.room.dto.UserDataDto;
 import com.game.liar.game.dto.MessageBody;
-import com.game.liar.room.domain.RoomId;
-import com.game.liar.room.domain.UserId;
-import com.game.liar.utils.BeanUtils;
+import com.game.liar.room.dto.UserDataDto;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,12 +30,6 @@ public class GameInfo {
     @Setter
     private TimerTask answerTask;
 
-    @Getter
-    boolean isTurnTimerStop = false;
-    @Getter
-    boolean isVoteTimerStop = false;
-    @Getter
-    boolean isAnswerTimerStop = false;
     private GameState state;
 
     public GameState getState() {
@@ -59,34 +49,32 @@ public class GameInfo {
     @Setter
     private GameSettings gameSettings;
 
-    private static GameCategoryProperties gameCategoryProperties;
-
     //Current round info
     @Getter
     private Integer round;
     @Getter
     private Integer turn;
     @Getter
-    private Map<java.lang.String, List<java.lang.String>> selectedByRoomOwnerCategory;
+    private Map<String, List<String>> selectedByRoomOwnerCategory;
 
     @Getter
-    private java.lang.String liarId;
+    private String liarId;
     @Getter
     @Setter
-    private java.lang.String currentRoundCategory;
+    private String currentRoundCategory;
     @Getter
     @Setter
-    private java.lang.String currentRoundKeyword;
+    private String currentRoundKeyword;
     /**
      * TODO: 유저가 중간에 나가는경우도 고려해야함
      */
     @Getter
     @Setter
-    private List<java.lang.String> turnOrder;
+    private List<String> turnOrder;
 
     @Getter
     @Setter
-    private Map<java.lang.String, java.lang.String> voteResult = new ConcurrentHashMap<>();
+    private Map<String, String> voteResult = new ConcurrentHashMap<>();
     @Getter
     private Integer voteCount = 0;
 
@@ -95,9 +83,9 @@ public class GameInfo {
     private boolean liarAnswer;
 
     @Getter
-    private Map<java.lang.String, Integer> scoreboard = new ConcurrentHashMap<>();
+    private Map<String, Integer> scoreboard = new ConcurrentHashMap<>();
 
-    public java.lang.String getCurrentTurnId() {
+    public String getCurrentTurnId() {
         synchronized (this) {
             log.info("[getCurrentTurnId] turn : {}", turn);
             if (turn >= turnOrder.size())
@@ -106,10 +94,10 @@ public class GameInfo {
         }
     }
 
-    public void initialize() {
+    public void initialize(Map<String, List<String>> subjects, List<String> categoryList) {
         round = 0;
         turn = -1;
-        initializeCategory(gameSettings.getCategory());
+        initializeCategory(subjects, categoryList);
     }
 
     public void nextRound() {
@@ -127,13 +115,13 @@ public class GameInfo {
         turn = -1;
     }
 
-    public void setLiar(java.lang.String liar) {
+    public void setLiar(String liar) {
         liarId = liar;
     }
 
     public void addUser(UserDataDto gameUser) {
         gameUserList.add(gameUser);
-        scoreboard.put(gameUser.toString(), 0);
+        scoreboard.put(gameUser.getUserId(), 0);
     }
 
     public void deleteUser(UserDataDto gameUser) {
@@ -141,14 +129,13 @@ public class GameInfo {
         scoreboard.remove(gameUser.getUserId());
     }
 
-    public boolean isUserInTheRoom(java.lang.String userId) {
+    public boolean isUserInTheRoom(String userId) {
         return gameUserList.stream().anyMatch(user -> user.getUserId().equals(userId));
     }
 
     public void cancelTurnTimer() {
         if (turnTimer == null) return;
         log.info("cancel turn timer [room:{}]", roomId);
-        isTurnTimerStop = true;
         turnTimer.cancel();
         turnTask.cancel();
     }
@@ -156,7 +143,6 @@ public class GameInfo {
     public void cancelVoteTimer() {
         if (voteTimer == null) return;
         log.info("cancel vote timer [room:{}]", roomId);
-        isVoteTimerStop = true;
         voteTimer.cancel();
         voteTask.cancel();
     }
@@ -164,25 +150,21 @@ public class GameInfo {
     public void cancelAnswerTimer() {
         if (answerTimer == null) return;
         log.info("cancel liar answer timer [room:{}]", roomId);
-        isAnswerTimerStop = true;
         answerTimer.cancel();
         answerTask.cancel();
     }
 
     public void scheduleTurnTimer(long delay) {
-        isTurnTimerStop = false;
         turnTimer = new Timer();
         turnTimer.schedule(turnTask, delay);
     }
 
     public void scheduleVoteTimer(long delay) {
-        isVoteTimerStop = false;
         voteTimer = new Timer();
         voteTimer.schedule(voteTask, delay);
     }
 
     public void scheduleAnswerTimer(long delay) {
-        isAnswerTimerStop = false;
         answerTimer = new Timer();
         answerTimer.schedule(answerTask, delay);
     }
@@ -193,14 +175,14 @@ public class GameInfo {
         }
     }
 
-    public void addVoteResult(java.lang.String from, java.lang.String liarDesignatedId) {
+    public void addVoteResult(String from, String liarDesignatedId) {
         log.info("user[{}] -> liar [{}]", from, liarDesignatedId);
         voteResult.put(from, liarDesignatedId);
 
         voteCount++;
     }
 
-    public boolean checkVoteCompleted(java.lang.String from) {
+    public boolean checkVoteCompleted(String from) {
         return voteResult.containsKey(from);
     }
 
@@ -210,7 +192,7 @@ public class GameInfo {
     }
 
     public void resetScoreBoard() {
-        for (Map.Entry<java.lang.String, Integer> item : scoreboard.entrySet()) {
+        for (Map.Entry<String, Integer> item : scoreboard.entrySet()) {
             item.setValue(0);
         }
     }
@@ -218,7 +200,7 @@ public class GameInfo {
     public void updateScoreBoard() {
         if (isUsersMatchLiar()) {
             //시민들이 라이어를 맞췄으면 시민들의 점수를 더한다.
-            for (Map.Entry<java.lang.String, Integer> item : scoreboard.entrySet()) {
+            for (Map.Entry<String, Integer> item : scoreboard.entrySet()) {
                 if (!item.getKey().equals(liarId)) {
                     //TODO:make const score
                     item.setValue(item.getValue() + 1);
@@ -252,13 +234,13 @@ public class GameInfo {
         return voteCount == turnOrder.size();
     }
 
-    public List<Map.Entry<java.lang.String, Long>> getMostVotedUserIdAndCount() {
-        Map<java.lang.String, Long> voteCountByDesignatedId =
+    public List<Map.Entry<String, Long>> getMostVotedUserIdAndCount() {
+        Map<String, Long> voteCountByDesignatedId =
                 voteResult.values().stream()
                         .filter(value -> !value.equals(""))
                         .collect(Collectors.groupingBy(liar -> liar, Collectors.counting()));
         log.info("voteResult :{} from [{}]. counting :{}", voteResult, roomId, voteCountByDesignatedId);
-        Optional<Map.Entry<java.lang.String, Long>> optional = voteCountByDesignatedId.entrySet().stream().max(Map.Entry.comparingByValue());
+        Optional<Map.Entry<String, Long>> optional = voteCountByDesignatedId.entrySet().stream().max(Map.Entry.comparingByValue());
         if (optional.isPresent())
             return voteCountByDesignatedId.entrySet().stream()
                     .filter(entry -> entry.getValue().longValue() == optional.get().getValue().longValue()).collect(Collectors.toList());
@@ -279,33 +261,33 @@ public class GameInfo {
     public static class GameSettings extends MessageBody {
         private Integer round;
         private Integer turn;
-        private List<java.lang.String> category;
+        private List<String> category;
 
         @Override
-        public java.lang.String toString() {
+        public String toString() {
             return "{" + "\"round\":" + round + ", \"turn\":" + turn + ", \"category\": [" + category + "]}";
         }
     }
 
-    public void initializeCategory(List<java.lang.String> categoryList) {
+    public void initializeCategory(Map<String, List<String>> subjects, List<String> categoryList) {
+        log.info("subjects = {}, categories = {}", subjects, categoryList);
         selectedByRoomOwnerCategory = new ConcurrentHashMap<>();
-        if (gameCategoryProperties == null)
-            gameCategoryProperties = (GameCategoryProperties) BeanUtils.getBean(GameCategoryProperties.class);
-        for (java.lang.String subject : categoryList) {
-            List<java.lang.String> predefinedKeywords = gameCategoryProperties.loadKeywords(subject);
+
+        for (String category : categoryList) {
+            if (!gameSettings.getCategory().contains(category))
+                continue;
+            List<String> predefinedKeywords = subjects.get(category);
             if (predefinedKeywords != null) {
-                selectedByRoomOwnerCategory.put(subject, predefinedKeywords);
+                selectedByRoomOwnerCategory.put(category, predefinedKeywords);
             }
         }
     }
 
-    public List<java.lang.String> getCategory() {
-        if (gameCategoryProperties == null)
-            gameCategoryProperties = (GameCategoryProperties) BeanUtils.getBean(GameCategoryProperties.class);
-        return new ArrayList<>(gameCategoryProperties.getKeywords().keySet());
+    public List<String> getCategory() {
+        return new ArrayList<>(selectedByRoomOwnerCategory.keySet());
     }
 
-    public void addCustomCategory(java.lang.String subject, List<java.lang.String> keywordList) {
+    public void addCustomCategory(String subject, List<String> keywordList) {
         selectedByRoomOwnerCategory.put(subject, keywordList);
     }
 

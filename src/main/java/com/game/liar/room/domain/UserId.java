@@ -1,11 +1,14 @@
 package com.game.liar.room.domain;
 
+import lombok.ToString;
+
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
 import java.io.Serializable;
 import java.util.Objects;
 
 @Embeddable
+@ToString
 public class UserId implements Serializable {
     public void setUserId(String userId) {
         this.userId = userId;

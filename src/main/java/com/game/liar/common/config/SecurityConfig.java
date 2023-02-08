@@ -60,6 +60,7 @@ public class SecurityConfig {
                     .authorizeRequests()
                     .antMatchers("/room/create").permitAll()
                     .antMatchers("/room/enter").permitAll()
+                    .antMatchers("/game/**").permitAll()
                 //swagger
                 .antMatchers("/v2/api-docs", "/swagger-resources/**", "/swagger-ui.html", "/webjars/**", "/swagger/**").permitAll()
                 /*https://stackoverflow.com/questions/59753263/how-to-fix-the-access-control-allow-origin-error-when-connecting-to-a-websocke*/

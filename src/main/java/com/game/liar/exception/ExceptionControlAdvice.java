@@ -1,5 +1,6 @@
 package com.game.liar.exception;
 
+import com.game.liar.room.controller.RoomController;
 import com.game.liar.room.service.RoomService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +13,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashSet;
 import java.util.Set;
 
-@RestControllerAdvice(assignableTypes = {RoomService.class})
+@RestControllerAdvice(assignableTypes = {RoomController.class})
 public class ExceptionControlAdvice {
 
     @ResponseStatus(HttpStatus.BAD_REQUEST)

@@ -10,7 +10,7 @@ import java.io.Serializable;
 @ToString
 @Table(name = "game_user")
 @Entity
-public class GameUser implements Serializable {
+public class GameUser extends BaseEntity implements Serializable {
     @EmbeddedId
     private UserId userId;
 

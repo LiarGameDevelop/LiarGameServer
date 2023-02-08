@@ -62,6 +62,7 @@ public class UserRepositoryTest {
         assertThat(userRepository.findByRoomId(RoomId.of("asdf")).size()).isEqualTo(1);
         assertThat(userRepository.findByUserId(user.getUserId()).get()).isEqualTo(user);
         assertThat(userRepository.findByUserId(user.getUserId()).get().getSessionId()).isEqualTo(sessionId);
+        assertThat(userRepository.findBySessionId(sessionId).get()).isEqualTo(user);
     }
 
     @Test

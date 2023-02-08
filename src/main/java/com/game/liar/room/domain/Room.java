@@ -14,7 +14,7 @@ import javax.persistence.*;
 @Entity
 @Table(name = "room")
 @ToString
-public class Room {
+public class Room extends BaseEntity {
     @EmbeddedId
     private RoomId id;
     @Embedded

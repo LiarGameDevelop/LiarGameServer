@@ -1,11 +1,14 @@
 package com.game.liar.room.domain;
 
+import lombok.ToString;
+
 import javax.persistence.Column;
 import javax.persistence.Embeddable;
 import java.io.Serializable;
 import java.util.Objects;
 
 @Embeddable
+@ToString
 public class RoomId implements Serializable {
     //private static final long serialVersionUID = -3438522768010613027L;
 

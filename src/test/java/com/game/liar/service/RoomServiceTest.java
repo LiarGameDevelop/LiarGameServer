@@ -3,10 +3,7 @@ package com.game.liar.service;
 import com.game.liar.exception.MaxCountException;
 import com.game.liar.exception.NotExistException;
 import com.game.liar.game.domain.RoomSettings;
-import com.game.liar.room.domain.GameUser;
-import com.game.liar.room.domain.Room;
-import com.game.liar.room.domain.RoomId;
-import com.game.liar.room.domain.UserId;
+import com.game.liar.room.domain.*;
 import com.game.liar.room.dto.*;
 import com.game.liar.room.repository.RoomRepository;
 import com.game.liar.room.service.RoomService;
@@ -21,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -43,7 +41,11 @@ class RoomServiceTest {
     @Test
     public void 방만들기_성공() throws Exception {
         //Given
-        when(roomRepository.nextRoomId()).thenReturn(new RoomId(UUID.randomUUID().toString()));
+        String roomId= UUID.randomUUID().toString();
+        when(roomRepository.nextRoomId()).thenReturn(new RoomId(roomId));
+        List<GameUser> fakeUsers = new ArrayList<>();
+        fakeUsers.add(new GameUser(UserId.of("ownerId"),RoomId.of(roomId),"ownerName","password2", Authority.ROLE_USER));
+        when(userRepository.findByRoomId(any())).thenReturn(fakeUsers);
         RoomInfoRequest request = createRoomPrecondition();
 
         //When
@@ -53,9 +55,11 @@ class RoomServiceTest {
         assertThat(result.getRoom().getSettings().getMaxCount()).isEqualTo(request.getMaxPersonCount());
         assertThat(result.getUser().getUsername()).isEqualTo(request.getOwnerName());
         assertThat(result.getRoom().getOwnerId()).isEqualTo(result.getUser().getUserId());
+        assertThat(result.getUserList()).isEqualTo(fakeUsers.stream().map(UserDataDto::toDto).collect(Collectors.toList()));
 
         verify(roomRepository, times(1)).save(any());
         verify(userRepository, times(1)).createUser(any(), any(), any(), any());
+        verify(userRepository, times(1)).findByRoomId(any());
     }
 
     private EnterRoomResponse createRoom(RoomInfoRequest request) {
@@ -119,7 +123,7 @@ class RoomServiceTest {
         //Then
         assertThat(result.getRoom().getRoomId()).isEqualTo(request.getRoomId());
         assertThat(result.getRoom().getOwnerId()).isEqualTo("ownerId");
-        assertThat(result.getUsers().size()).isEqualTo(1);
+        assertThat(result.getUserList().size()).isEqualTo(1);
     }
 
     @Test
@@ -142,8 +146,8 @@ class RoomServiceTest {
                 "guest",
                 "password2",
                 null);
-        List<GameUser> users = Collections.singletonList(fakeUser);
-        when(userRepository.findByRoomId(any())).thenReturn(users);
+        List<GameUser> fakeUsers = Collections.singletonList(fakeUser);
+        when(userRepository.findByRoomId(any())).thenReturn(fakeUsers);
         when(userRepository.createUser(eq("guest"), eq("password"), any(), eq(passwordEncoder)))
                 .thenReturn(new GameUser(
                         UserId.of("guest" + UUID.randomUUID()),
@@ -160,6 +164,11 @@ class RoomServiceTest {
         System.out.println("result :" + result + ", guest" + guest);
         assertThat(result.getUser().getUsername()).isEqualTo(guest.getUsername());
         assertThat(result.getUser().getPassword()).isEqualTo(guest.getPassword());
+        assertThat(result.getUserList()).isEqualTo(fakeUsers.stream().map(UserDataDto::toDto).collect(Collectors.toList()));
+
+        verify(roomRepository,times(1)).findById(any());
+        verify(userRepository,times(2)).findByRoomId(any());
+
     }
 
     @Test

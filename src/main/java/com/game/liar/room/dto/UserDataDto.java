@@ -3,10 +3,7 @@ package com.game.liar.room.dto;
 import com.game.liar.exception.NotExistException;
 import com.game.liar.room.domain.GameUser;
 import io.swagger.annotations.ApiModelProperty;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 
 /**Game User data without password**/
@@ -15,6 +12,9 @@ import lombok.extern.slf4j.Slf4j;
 @Setter
 @AllArgsConstructor
 @Builder
+@EqualsAndHashCode
+@ToString
+@NoArgsConstructor
 public class UserDataDto {
     @ApiModelProperty(value="유저 이름",example = "younghee")
     private String username;

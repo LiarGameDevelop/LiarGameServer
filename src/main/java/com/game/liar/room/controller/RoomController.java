@@ -33,7 +33,6 @@ public class RoomController {
         //TODO: introduce event handler
         if (response != null) {
             gameController.addRoom(response.getRoom().getRoomId(), response.getUser().getUserId());
-            gameController.addMember(RoomId.of(response.getRoom().getRoomId()), UserDataDto.toDto(response.getUser()));
             log.info("[Create] [room:{}]", response);
         }
         return response;
@@ -51,33 +50,24 @@ public class RoomController {
     @ApiOperation(value = "방 참여", notes = "방에 참여한다")
     public EnterRoomResponse enterRoom(@Valid @RequestBody RoomIdUserNameRequest request, HttpServletRequest httpRequest) throws MaxCountException {
         log.info("[enterRoom] request :" + request + ", ip :" + getClientIp(httpRequest));
-        EnterRoomResponse room = roomService.addRoomMember(request);
-
-        //TODO: event handler로 이동
-        gameController.addMember(RoomId.of(room.getRoom().getRoomId()), UserDataDto.toDto(room.getUser()));
-        return room;
+        return roomService.addRoomMember(request);
     }
 
-    @PostMapping("/room/leave")
-    @ApiOperation(value = "방 나가기", notes = "방을 나간다")
-    public RoomInfoResponse leaveRoom(@Valid @RequestBody RoomIdUserIdRequest request, HttpServletRequest httpRequest) {
-        //TODO: 토큰 추가
-        log.info("[leaveRoom] request :" + request + ", ip :" + getClientIp(httpRequest));
-
-        RoomInfoResponse room = roomService.leaveRoomMember(request);
-        //TODO: event handler에서 처리
-        //gameController.deleteMember(RoomId.of(room.getRoom().getRoomId()), null);
-        return room;
-    }
-
-    @DeleteMapping("/room")
-    @ApiOperation(value = "방 삭제", notes = "방을 삭제한다")
-    public void removeRoom(@Valid @RequestBody RoomIdRequest request, HttpServletRequest httpRequest) {
-        log.info("[removeRoom] request :" + request + ", ip :" + getClientIp(httpRequest));
-        roomService.deleteRoom(request);
-        //알리기
-        gameController.removeRoom(request.getRoomId());
-    }
+//    @PostMapping("/room/leave")
+//    @ApiOperation(value = "방 나가기", notes = "방을 나간다")
+//    public RoomInfoResponse leaveRoom(@Valid @RequestBody RoomIdUserIdRequest request, HttpServletRequest httpRequest) {
+//        log.info("[leaveRoom] request :" + request + ", ip :" + getClientIp(httpRequest));
+//        return roomService.leaveRoomMember(request);
+//    }
+//
+//    @DeleteMapping("/room")
+//    @ApiOperation(value = "방 삭제", notes = "방을 삭제한다")
+//    public void removeRoom(@Valid @RequestBody RoomIdRequest request, HttpServletRequest httpRequest) {
+//        log.info("[removeRoom] request :" + request + ", ip :" + getClientIp(httpRequest));
+//        roomService.deleteRoom(request);
+//        //알리기
+//        gameController.removeRoom(request.getRoomId());
+//    }
 
     public static java.lang.String getClientIp(HttpServletRequest request) {
         if (request == null) {

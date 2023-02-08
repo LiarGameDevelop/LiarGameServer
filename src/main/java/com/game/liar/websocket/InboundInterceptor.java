@@ -79,8 +79,8 @@ public class InboundInterceptor implements ChannelInterceptor {
         ChannelInterceptor.super.postSend(message, channel, sent);
     }
 
-    private void checkTokenAndSendLoginMessage(MessageChannel channel, StompHeaderAccessor accessor, String loginAndOut) {
-        if(loginAndOut.equals("login")) {
+    private void checkTokenAndSendLoginMessage(MessageChannel channel, StompHeaderAccessor accessor, String login) {
+        if (login.equals("login")) {
             String jwt = verifyJwt(accessor);
             Claims claims = tokenProvider.parseClaims(jwt);
             String subject = claims.getSubject();
@@ -89,25 +89,24 @@ public class InboundInterceptor implements ChannelInterceptor {
 
             try {
                 ObjectMapper objectMapper = new ObjectMapper();
-                LoginInfo loginInfo = new LoginInfo(roomId, userId, loginAndOut);
+                LoginInfo loginInfo = new LoginInfo(roomId, userId, true);
                 String msgJson = objectMapper.writeValueAsString(loginInfo);
                 StompHeaderAccessor loginAccessor = StompHeaderAccessor.create(StompCommand.MESSAGE);
                 loginAccessor.setMessage(msgJson);
 
-                loginAccessor.setNativeHeader(AUTHORIZATION_HEADER, accessor.getNativeHeader(AUTHORIZATION_HEADER).get(0));
+                //loginAccessor.setNativeHeader(AUTHORIZATION_HEADER, accessor.getNativeHeader(AUTHORIZATION_HEADER).get(0));
                 loginAccessor.setSessionId(accessor.getSessionId());
                 loginAccessor.setSessionAttributes(accessor.getSessionAttributes());
-                loginAccessor.setDestination(String.format("/subscribe/room.%s/%s", loginAndOut, roomId));
+                loginAccessor.setDestination(String.format("/subscribe/room.%s/%s", login, roomId));
                 channel.send(MessageBuilder.createMessage(msgJson.getBytes(StandardCharsets.UTF_8), loginAccessor.getMessageHeaders()));
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
 
-            WebsocketConnectedEvent event = new WebsocketConnectedEvent(this,roomId,userId, accessor.getSessionId());
+            WebsocketConnectedEvent event = new WebsocketConnectedEvent(this, roomId, userId, accessor.getSessionId());
             publisher.publishEvent(event);
-        }
-        else{
-            WebsocketDisconnectedEvent event = new WebsocketDisconnectedEvent(this,accessor.getSessionId());
+        } else {
+            WebsocketDisconnectedEvent event = new WebsocketDisconnectedEvent(this, accessor.getSessionId());
             publisher.publishEvent(event);
         }
     }
@@ -127,7 +126,7 @@ public class InboundInterceptor implements ChannelInterceptor {
         if (StringUtils.hasText(bearerToken) && bearerToken.startsWith(BEARER_PREFIX)) {
             return bearerToken.substring(7);
         }
-        throw new IllegalArgumentException(String.format("JWT exists, but format error %s",accessor.getNativeHeader(AUTHORIZATION_HEADER)));
+        throw new IllegalArgumentException(String.format("JWT exists, but format error %s", accessor.getNativeHeader(AUTHORIZATION_HEADER)));
     }
 
     @Getter
@@ -135,6 +134,6 @@ public class InboundInterceptor implements ChannelInterceptor {
     private static class LoginInfo {
         private String roomId;
         private String userId;
-        private String login;
+        private boolean login;
     }
 }

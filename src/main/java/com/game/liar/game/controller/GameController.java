@@ -2,28 +2,30 @@ package com.game.liar.game.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.game.liar.game.dto.MessageContainer;
-import com.game.liar.game.dto.response.*;
-import com.game.liar.room.dto.UserDataDto;
-import com.game.liar.game.dto.request.KeywordRequest;
-import com.game.liar.game.dto.request.LiarDesignateRequest;
 import com.game.liar.exception.ErrorResult;
 import com.game.liar.exception.JsonDeserializeException;
 import com.game.liar.exception.LiarGameException;
 import com.game.liar.exception.NotAllowedActionException;
-import com.game.liar.game.service.GameService;
 import com.game.liar.game.domain.GameInfo;
 import com.game.liar.game.domain.Global;
-import com.game.liar.room.domain.RoomId;
-import lombok.Setter;
-import lombok.SneakyThrows;
+import com.game.liar.game.dto.MessageContainer;
+import com.game.liar.game.dto.request.KeywordRequest;
+import com.game.liar.game.dto.request.LiarDesignateRequest;
+import com.game.liar.game.dto.response.*;
+import com.game.liar.game.service.GameService;
+import com.game.liar.room.dto.UserDataDto;
+import com.game.liar.room.event.UserAddedEvent;
+import com.game.liar.room.event.UserRemovedEvent;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.annotation.SendToUser;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.*;
@@ -33,18 +35,17 @@ import static com.game.liar.game.domain.Global.*;
 @RestController
 @Slf4j
 public class GameController {
-
     private static final ObjectMapper objectMapper = new ObjectMapper();
-
-    private final SimpMessagingTemplate messagingTemplate;
-    private GameService gameService;
-    @Setter
-    private long timeout = 20000;
 
     public GameController(SimpMessagingTemplate messagingTemplate, GameService gameService) {
         this.messagingTemplate = messagingTemplate;
         this.gameService = gameService;
     }
+
+    private SimpMessagingTemplate messagingTemplate;
+    private GameService gameService;
+    @Setter
+    private long timeout = 20000;
 
     //TODO : refactoring
     @SneakyThrows
@@ -91,20 +92,48 @@ public class GameController {
         }
     }
 
+    @EventListener
+    @Async
+    public void onUserAdded(UserAddedEvent event) {
+        log.info("[onUserAdded] user Added. event :{}", event);
+        String roomId = event.getRoomId();
+        UserDataDto user = event.getUser();
+        if (roomId == null || user == null)
+            throw new IllegalArgumentException("room id/user info should be required");
+        GameInfo gameInfo = gameService.getGame(roomId);
+        gameInfo.addUser(user);
+    }
+
+    @EventListener
+    @Async
+    public void onUserRemoved(UserRemovedEvent event) throws JsonProcessingException {
+        log.info("[onUserRemoved] user Removed. event :{}", event);
+        String roomId = event.getRoomId();
+        UserDataDto user = event.getUser();
+        if (roomId == null || user == null)
+            throw new IllegalArgumentException("room id/user info should be required");
+        GameInfo gameInfo = gameService.getGame(roomId);
+        gameInfo.deleteUser(user);
+
+        //TODO: user login/logout 한곳에서 관리
+        LogoutInfo logoutInfo = new LogoutInfo(roomId, user.getUserId(), false);
+        messagingTemplate.convertAndSend(String.format("/subscribe/room.logout/%s", roomId), objectMapper.writeValueAsString(logoutInfo));
+    }
+
+    @AllArgsConstructor
+    @Getter
+    private static class LogoutInfo {
+        String roomId;
+        String userId;
+        boolean login;
+    }
+
     public void addRoom(String string, String ownerId) {
         gameService.addGame(string, ownerId);
     }
 
     public void removeRoom(String string) {
         gameService.removeGame(string);
-    }
-
-    public void addMember(RoomId roomId, UserDataDto gameUser) {
-        gameService.addMember(roomId.getId(), gameUser);
-    }
-
-    public void deleteMember(RoomId roomId, UserDataDto gameUser) {
-        gameService.deleteMember(roomId.getId(), gameUser);
     }
 
     @FunctionalInterface
@@ -312,10 +341,6 @@ public class GameController {
         gameInfo.setTurnTask(new TimerTask() {
             @Override
             public void run() {
-                if (gameInfo.isTurnTimerStop()) {
-                    log.info("[API]notifyTurnTimeout STOP. from [room:{}]", string);
-                    return;
-                }
                 log.info("[API]notifyTurnTimeout from [room:{}]", string);
                 sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_TURN_TIMEOUT, null), string);
                 //타임아웃났다고 알리고, 다음 턴의 사람으로 바꿔야함. 다음턴의 사람이 보냈다고 해야함.
@@ -330,10 +355,6 @@ public class GameController {
         gameInfo.setVoteTask(new TimerTask() {
             @Override
             public void run() {
-                if (gameInfo.isVoteTimerStop()) {
-                    log.info("[API]notifyVoteTimeout STOP. from [room:{}]", roomId);
-                    return;
-                }
                 log.info("[API]notifyVoteTimeout from [room:{}]", roomId);
                 sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_VOTE_TIMEOUT, null), roomId);
                 //타임아웃났다고 알리고, 투표완료시켜야함
@@ -355,10 +376,6 @@ public class GameController {
         gameInfo.setAnswerTask(new TimerTask() {
             @Override
             public void run() {
-                if (gameInfo.isAnswerTimerStop()) {
-                    log.info("[API]notifyLiarAnswerTimeout STOP. from [room:{}]", string);
-                    return;
-                }
                 log.info("[API]notifyLiarAnswerTimeout from [room:{}]", string);
                 sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_TIMEOUT, null), string);
                 //타임아웃났다고 알리고, checkKeywordCorrect 요청
@@ -372,16 +389,7 @@ public class GameController {
         gameInfo.scheduleAnswerTimer(timeout);
     }
 
-    public void sendHostMessage(String uuid, MessageContainer.Message message, String string) {
-        MessageContainer response = MessageContainer.messageContainerBuilder()
-                .uuid(uuid)
-                .senderId("SERVER")
-                .message(message)
-                .build();
-        log.info("sendHostMessage. message: {}, [room:{}]", response, string);
-        messagingTemplate.convertAndSend(String.format("/subscribe/private/%s", string), response);
-    }
-
+    //TODO: introduce message service
     public void sendPrivateMessage(String uuid, MessageContainer.Message message, String receiver) {
         MessageContainer response = MessageContainer.messageContainerBuilder()
                 .uuid(uuid)

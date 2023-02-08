@@ -9,6 +9,8 @@ import com.game.liar.room.domain.Room;
 import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.domain.UserId;
 import com.game.liar.room.dto.*;
+import com.game.liar.room.event.UserAddedEvent;
+import com.game.liar.room.event.UserRemovedEvent;
 import com.game.liar.room.repository.RoomRepository;
 import com.game.liar.security.JwtService;
 import com.game.liar.security.dto.TokenDto;
@@ -18,6 +20,7 @@ import com.game.liar.websocket.WebsocketConnectedEvent;
 import com.game.liar.websocket.WebsocketDisconnectedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,9 +40,7 @@ public class RoomService {
     private final RoomRepository roomRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder encoder;
-
     private final JwtService jwtService;
-
 
     @Transactional
     public EnterRoomResponse create(RoomInfoRequest request) throws MaxCountException, NotExistException {
@@ -65,7 +67,9 @@ public class RoomService {
         userDto.setPassword(request.getPassword());
         TokenDto token = jwtService.getJwtToken(userDto, room);
 
-        return new EnterRoomResponse(new RoomDto(room), userDto, token);
+        List<UserDataDto> users = getUserList(roomId);
+
+        return new EnterRoomResponse(new RoomDto(room), userDto, users, token);
     }
 
     private RoomId generateRoomId() {
@@ -78,9 +82,14 @@ public class RoomService {
     }
 
     public RoomInfoResponse getRoom(RoomIdRequest request) {
-        Room room = roomRepository.findById(RoomId.of(request.getRoomId())).orElseThrow(() -> new NotExistException("Request Room name does not exist"));
-        List<UserDataDto> users = userRepository.findByRoomId(room.getId()).stream().map(UserDataDto::toDto).collect(Collectors.toList());
+        RoomId roomId = RoomId.of(request.getRoomId());
+        Room room = roomRepository.findById(roomId).orElseThrow(() -> new NotExistException("Request Room name does not exist"));
+        List<UserDataDto> users = getUserList(roomId);
         return new RoomInfoResponse(new RoomDto(room), users);
+    }
+
+    private List<UserDataDto> getUserList(RoomId roomId) {
+        return userRepository.findByRoomId(roomId).stream().map(UserDataDto::toDto).collect(Collectors.toList());
     }
 
     public List<String> getUsersId(RoomIdRequest request) {
@@ -117,14 +126,16 @@ public class RoomService {
         userDto.setPassword(request.getPassword());
         TokenDto token = jwtService.getJwtToken(userDto, room);
 
+        List<UserDataDto> users = getUserList(roomId);
+
         log.info("room : {}, user : {}", user, room);
 
-        return new EnterRoomResponse(new RoomDto(room), userDto, token);
+        return new EnterRoomResponse(new RoomDto(room), userDto, users, token);
     }
 
     @Transactional
     public RoomInfoResponse leaveRoomMember(RoomIdUserIdRequest request) {
-        log.info("[leaveRoomMember] request :{}",request);
+        log.info("[leaveRoomMember] request :{}", request);
         RoomId roomId = RoomId.of(request.getRoomId());
         UserId userId = UserId.of(request.getUserId());
 
@@ -138,9 +149,10 @@ public class RoomService {
 
     @Component
     @RequiredArgsConstructor
-    private static class WebsocketConnectionEventListener {
+    public static class WebsocketConnectionEventListener {
         private final RoomService roomService;
         private final UserRepository userRepository;
+        private final ApplicationEventPublisher publisher;
 
         @EventListener
         @Async
@@ -151,12 +163,12 @@ public class RoomService {
             String sessionId = event.getSessionId();
             if (roomId == null || userId == null || sessionId == null)
                 throw new IllegalArgumentException("room id/user id/session id should be required");
-            if (userRepository.findByUserIdAndRoomId(UserId.of(userId), RoomId.of(roomId)).isPresent()) {
-                log.info("User found and save the user{} session id {}", userId, sessionId);
-                GameUser user = userRepository.findByUserIdAndRoomId(UserId.of(userId),RoomId.of(roomId))
-                        .orElseThrow(() -> new NotExistException(String.format("There is no session id :%s", sessionId)));
-                user.saveSession(sessionId);
-            }
+
+            GameUser user = userRepository.findByUserIdAndRoomId(UserId.of(userId), RoomId.of(roomId))
+                    .orElseThrow(() -> new NotExistException(String.format("There is no session id :%s", sessionId)));
+            log.info("User found and save the user{} session id {}", userId, sessionId);
+            user.saveSession(sessionId);
+            publisher.publishEvent(new UserAddedEvent(this, roomId, UserDataDto.toDto(user)));
         }
 
         @EventListener
@@ -166,9 +178,17 @@ public class RoomService {
             if (sessionId == null) {
                 throw new IllegalArgumentException("Session id should be required");
             }
-            GameUser user = userRepository.findBySessionId(sessionId).stream().findFirst()
+            log.info("disconnected session id :{}", sessionId);
+            GameUser user = userRepository.findBySessionId(sessionId)
                     .orElseThrow(() -> new NotExistException(String.format("There is no session id :%s", sessionId)));
-            roomService.leaveRoomMember(new RoomIdUserIdRequest(user.getRoomId().getId(), user.getUserId().getUserId()));
+
+            String roomId = user.getRoomId().getId();
+            String userId = user.getUserId().getUserId();
+            String username = user.getUsername();
+            UserDataDto userDto = new UserDataDto(username,userId);
+
+            roomService.leaveRoomMember(new RoomIdUserIdRequest(roomId, userId));
+            publisher.publishEvent(new UserRemovedEvent(this, roomId, userDto));
         }
     }
 
