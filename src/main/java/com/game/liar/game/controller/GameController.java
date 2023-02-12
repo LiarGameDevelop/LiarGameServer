@@ -16,7 +16,10 @@ import com.game.liar.game.service.GameService;
 import com.game.liar.room.dto.UserDataDto;
 import com.game.liar.room.event.UserAddedEvent;
 import com.game.liar.room.event.UserRemovedEvent;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -25,9 +28,11 @@ import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.annotation.SendToUser;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Instant;
 import java.util.*;
 
 import static com.game.liar.game.domain.Global.*;
@@ -37,13 +42,16 @@ import static com.game.liar.game.domain.Global.*;
 public class GameController {
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    public GameController(SimpMessagingTemplate messagingTemplate, GameService gameService) {
+    private final SimpMessagingTemplate messagingTemplate;
+    private GameService gameService;
+
+    public GameController(SimpMessagingTemplate messagingTemplate, GameService gameService, TaskScheduler taskScheduler) {
         this.messagingTemplate = messagingTemplate;
         this.gameService = gameService;
+        this.taskScheduler = taskScheduler;
     }
 
-    private SimpMessagingTemplate messagingTemplate;
-    private GameService gameService;
+    private final TaskScheduler taskScheduler;
     @Setter
     private long timeout = 20000;
 
@@ -336,25 +344,27 @@ public class GameController {
         }
     };
 
-    private void __registerTurnTimeoutNotification(MessageContainer request, String string, GameInfo gameInfo) {
-        log.info("[API]register notifyTurnTimeout from [room:{}]", string);
-        gameInfo.setTurnTask(new TimerTask() {
+    private void __registerTurnTimeoutNotification(MessageContainer request, String roomId, GameInfo gameInfo) {
+        log.info("[API]register notifyTurnTimeout from [room:{}]", roomId);
+        taskScheduler.schedule(new TimerTask() {
             @Override
             public void run() {
-                log.info("[API]notifyTurnTimeout from [room:{}]", string);
-                sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_TURN_TIMEOUT, null), string);
+                if (!gameInfo.isTurnTimerRunning()) return;
+                log.info("[API]notifyTurnTimeout from [room:{}]", roomId);
+                sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_TURN_TIMEOUT, null), roomId);
                 //타임아웃났다고 알리고, 다음 턴의 사람으로 바꿔야함. 다음턴의 사람이 보냈다고 해야함.
-                __requestTurnFinished(new MessageContainer(gameInfo.getCurrentTurnId(), null, UUID.randomUUID().toString()), string);
+                __requestTurnFinished(new MessageContainer(gameInfo.getCurrentTurnId(), null, UUID.randomUUID().toString()), roomId);
             }
-        });
-        gameInfo.scheduleTurnTimer(timeout);
+        }, Instant.now().plusMillis(timeout));
+        gameInfo.startTurnTimer();
     }
 
     private void __registerVoteTimeoutNotification(MessageContainer request, String roomId, GameInfo gameInfo) {
         log.info("[API]register notifyVoteTimeout from [room:{}]", roomId);
-        gameInfo.setVoteTask(new TimerTask() {
+        taskScheduler.schedule(new TimerTask() {
             @Override
             public void run() {
+                if (!gameInfo.isVoteTimerRunning()) return;
                 log.info("[API]notifyVoteTimeout from [room:{}]", roomId);
                 sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_VOTE_TIMEOUT, null), roomId);
                 //타임아웃났다고 알리고, 투표완료시켜야함
@@ -367,15 +377,16 @@ public class GameController {
                             UUID.randomUUID().toString()), roomId);
                 }
             }
-        });
-        gameInfo.scheduleVoteTimer(timeout);
+        }, Instant.now().plusMillis(timeout));
+        gameInfo.startVoteTimer();
     }
 
     private void __registerLiarAnswerTimeoutNotification(MessageContainer request, String string, GameInfo gameInfo) {
         log.info("[API]register notifyAnswerTimeout from [room:{}]", string);
-        gameInfo.setAnswerTask(new TimerTask() {
+        taskScheduler.schedule(new TimerTask() {
             @Override
             public void run() {
+                if (!gameInfo.isAnswerTimerRunning()) return;
                 log.info("[API]notifyLiarAnswerTimeout from [room:{}]", string);
                 sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_TIMEOUT, null), string);
                 //타임아웃났다고 알리고, checkKeywordCorrect 요청
@@ -385,8 +396,8 @@ public class GameController {
                                 UUID.randomUUID().toString()),
                         string);
             }
-        });
-        gameInfo.scheduleAnswerTimer(timeout);
+        }, Instant.now().plusMillis(timeout));
+        gameInfo.startAnswerTimer();
     }
 
     //TODO: introduce message service
@@ -410,3 +421,4 @@ public class GameController {
         messagingTemplate.convertAndSend(String.format("/subscribe/public/%s", string), response);
     }
 }
+

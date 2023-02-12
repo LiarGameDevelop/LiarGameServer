@@ -15,21 +15,11 @@ import java.util.stream.Collectors;
 @ToString
 public class GameInfo {
     @Getter
-    private Timer turnTimer;
+    private boolean isTurnTimerRunning;
     @Getter
-    private Timer voteTimer;
+    private boolean isVoteTimerRunning;
     @Getter
-    private Timer answerTimer;
-    @Getter
-    @Setter
-    private TimerTask turnTask;
-    @Getter
-    @Setter
-    private TimerTask voteTask;
-    @Getter
-    @Setter
-    private TimerTask answerTask;
-
+    private boolean isAnswerTimerRunning;
     private GameState state;
 
     public GameState getState() {
@@ -134,39 +124,33 @@ public class GameInfo {
     }
 
     public void cancelTurnTimer() {
-        if (turnTimer == null) return;
         log.info("cancel turn timer [room:{}]", roomId);
-        turnTimer.cancel();
-        turnTask.cancel();
+        isTurnTimerRunning = false;
     }
 
     public void cancelVoteTimer() {
-        if (voteTimer == null) return;
         log.info("cancel vote timer [room:{}]", roomId);
-        voteTimer.cancel();
-        voteTask.cancel();
+        isVoteTimerRunning = false;
     }
 
     public void cancelAnswerTimer() {
-        if (answerTimer == null) return;
         log.info("cancel liar answer timer [room:{}]", roomId);
-        answerTimer.cancel();
-        answerTask.cancel();
+        isAnswerTimerRunning = false;
     }
 
-    public void scheduleTurnTimer(long delay) {
-        turnTimer = new Timer();
-        turnTimer.schedule(turnTask, delay);
+    public void startTurnTimer() {
+        log.info("cancel turn timer [room:{}]", roomId);
+        isTurnTimerRunning = true;
     }
 
-    public void scheduleVoteTimer(long delay) {
-        voteTimer = new Timer();
-        voteTimer.schedule(voteTask, delay);
+    public void startVoteTimer() {
+        log.info("cancel vote timer [room:{}]", roomId);
+        isVoteTimerRunning = true;
     }
 
-    public void scheduleAnswerTimer(long delay) {
-        answerTimer = new Timer();
-        answerTimer.schedule(answerTask, delay);
+    public void startAnswerTimer() {
+        log.info("cancel liar answer timer [room:{}]", roomId);
+        isAnswerTimerRunning = true;
     }
 
     public boolean isLastTurn() {
