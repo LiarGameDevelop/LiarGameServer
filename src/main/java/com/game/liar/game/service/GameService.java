@@ -1,9 +1,6 @@
 package com.game.liar.game.service;
 
-import com.game.liar.exception.NotAllowedActionException;
-import com.game.liar.exception.NotExistException;
-import com.game.liar.exception.RequiredParameterMissingException;
-import com.game.liar.exception.StateNotAllowedExpcetion;
+import com.game.liar.exception.*;
 import com.game.liar.game.domain.GameInfo;
 import com.game.liar.game.domain.GameState;
 import com.game.liar.game.domain.Global;
@@ -82,7 +79,7 @@ public class GameService {
     public GameInfo addGame(String roomId, String roomOwnerId) {
         if (gameManagerMap.containsKey(roomId)) {
             log.error("The game manager already exists");
-            throw new NotExistException("The game manager already exists");
+            throw new AlreadyExistException("The game manager already exists");
         }
 
         GameInfo gameInfo = new GameInfo(roomId, roomOwnerId);

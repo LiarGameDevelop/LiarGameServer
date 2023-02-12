@@ -3,34 +3,38 @@ package com.game.liar.controller;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.game.liar.exception.*;
 import com.game.liar.game.config.GameCategoryProperties;
+import com.game.liar.game.controller.GameController;
+import com.game.liar.game.domain.GameInfo;
 import com.game.liar.game.domain.GameState;
 import com.game.liar.game.domain.Global;
 import com.game.liar.game.dto.MessageBody;
 import com.game.liar.game.dto.MessageContainer;
 import com.game.liar.game.dto.request.KeywordRequest;
 import com.game.liar.game.dto.request.LiarDesignateRequest;
-import com.game.liar.room.dto.EnterRoomResponse;
-import com.game.liar.room.dto.RoomIdUserNameRequest;
-import com.game.liar.room.dto.RoomInfoRequest;
-import com.game.liar.exception.*;
-import com.game.liar.game.domain.GameInfo;
-import com.game.liar.game.controller.GameController;
 import com.game.liar.game.dto.response.*;
 import com.game.liar.game.service.GameService;
-import com.game.liar.room.controller.RoomController;
+import com.game.liar.room.dto.EnterRoomResponse;
+import com.game.liar.room.dto.UserDataDto;
 import com.game.liar.utils.BeanUtils;
+import com.game.liar.websocket.InboundInterceptor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.messaging.converter.MappingJackson2MessageConverter;
 import org.springframework.messaging.simp.stomp.StompFrameHandler;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
+import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 import org.springframework.web.socket.sockjs.client.SockJsClient;
@@ -46,12 +50,17 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 
+import static com.game.liar.Util.*;
 import static com.game.liar.game.domain.Global.*;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
+@ExtendWith(MockitoExtension.class)
 class GameControllerIT {
     @LocalServerPort
     private Integer port;
@@ -60,9 +69,11 @@ class GameControllerIT {
     @Autowired
     GameService gameService;
     @Autowired
-    RoomController roomController;
+    private MockMvc mockMvc;
     @Autowired
     GameCategoryProperties gameCategoryProperties;
+    @MockBean
+    private InboundInterceptor inboundInterceptor;
 
     WebSocketStompClient stompClient;
     StompSession stompSession;
@@ -70,9 +81,11 @@ class GameControllerIT {
     ObjectMapper objectMapper = new ObjectMapper();
     String roomId;
     String ownerId;
-    final String password="password";
 
     List<SessionInfo> sessionInfoList = new ArrayList<>();
+
+    TestStompObject stompObject;
+    TestStompObject stompObject2;
 
     public static final String SUBSCRIBE_PUBLIC = "/subscribe/public/";
     public static final String SUBSCRIBE_PRIVATE = "/subscribe/private/";
@@ -84,6 +97,8 @@ class GameControllerIT {
         stompClient = new WebSocketStompClient(new SockJsClient(createTransportClient()));
         stompClient.setMessageConverter(new MappingJackson2MessageConverter());
         objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+
+        when(inboundInterceptor.preSend(any(), any())).thenAnswer(i -> i.getArguments()[0]);
 
         try {
             stompSession = stompClient.connect("ws://localhost:" + port + "/ws-connection", new StompSessionHandlerAdapter() {
@@ -97,8 +112,8 @@ class GameControllerIT {
         gameController.setTimeout(20000);
 
         try {
-            방생성("roomOwner");
-            게임참가("user1");
+            String roomId = 방생성("roomOwner");
+            게임참가("user1", roomId);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -113,29 +128,35 @@ class GameControllerIT {
         StompSession session;
         EnterRoomResponse roomInfo;
         String guestId;
-        TestStompHandlerChain<MessageContainer> privateStompHandler;
-        TestStompHandlerChain<MessageContainer> publicStompHandler;
     }
 
-    private void 게임참가(String name) throws Exception {
+    private void 게임참가(String username, String roomId) throws Exception {
+        stompObject2 = createStompObjAndEnterRoom(mockMvc, port, roomId);
+
         SessionInfo s = new SessionInfo();
-        s.session = createStompSession();
-        s.roomInfo = roomController.enterRoom(new RoomIdUserNameRequest(roomId, name,password), null);
+        s.session = stompObject2.getStompSession();
+        s.roomInfo = stompObject2.getRoomInfo();
         s.guestId = s.roomInfo.getUser().getUserId();
 
         sessionInfoList.add(s);
 
         assertThat(s.session).isNotNull();
         assertThat(s.session.isConnected()).isTrue();
+
+        gameService.addMember(roomId, new UserDataDto(username,s.guestId));
     }
 
-    private void 방생성(String roomOwner) throws Exception {
-        EnterRoomResponse roomInfo = roomController.create(new RoomInfoRequest(5, roomOwner,password), null);
+    private String 방생성(String roomOwner) throws Exception {
+        stompObject = createStompObj(mockMvc, port);
+
+        EnterRoomResponse roomInfo = stompObject.getRoomInfo();
         roomId = roomInfo.getRoom().getRoomId();
         ownerId = roomInfo.getRoom().getOwnerId();
+        gameService.addMember(roomId, new UserDataDto(roomOwner,ownerId));
+        return roomId;
     }
 
-    //@Test
+    @Test
     public void 게임시작() throws Exception {
         __게임시작();
         teardown();
@@ -145,8 +166,8 @@ class GameControllerIT {
         gameService.getGame(roomId).cancelTurnTimer();
         gameService.getGame(roomId).cancelVoteTimer();
         gameService.getGame(roomId).cancelAnswerTimer();
-        stompSession.disconnect();
-        sessionInfoList.get(0).session.disconnect();
+        stompObject.getStompSession().disconnect();
+        sessionInfoList.clear();
     }
 
     private void __게임시작() throws Exception {
@@ -183,10 +204,10 @@ class GameControllerIT {
         System.out.println(message);
         assertThat(message).isNotNull();
         assertThat(message).isEqualTo(expectMessage);
-        sub.unsubscribe();
+
     }
 
-    //@Test
+    @Test
     public void 라운드를초과한세팅이면_게임시작에_실패한다() throws Exception {
         //given
         TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
@@ -226,15 +247,15 @@ class GameControllerIT {
         assertThat(message).isNotNull();
         assertThat(message).isEqualTo(expectMessage);
         assertThrows(TimeoutException.class, () -> handler2.getCompletableFuture().get(3, SECONDS));
-        sub.unsubscribe();
-        sub2.unsubscribe();
+
+
     }
 
-    //@Test
+    @Test
     public void 게임카테고리를요청하면_reply한다() throws Exception {
         //given
         TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
-        StompSession.Subscription sub = stompSession.subscribe(String.format("/subscribe/private/%s",ownerId), handler1);
+        StompSession.Subscription sub = stompSession.subscribe(String.format("/subscribe/private/%s", ownerId), handler1);
 
         //when
         String uuid = UUID.randomUUID().toString();
@@ -252,7 +273,8 @@ class GameControllerIT {
                 .senderId("SERVER")
                 .message(new MessageContainer.Message(NOTIFY_GAME_CATEGORY,
                         new GameCategoryResponse(new ArrayList<>((
-                                        (GameCategoryProperties) BeanUtils.getBean(GameCategoryProperties.class)).getKeywords().keySet())) {
+                                (GameCategoryProperties) BeanUtils.getBean(GameCategoryProperties.class))
+                                .getKeywords().keySet().stream().sorted().collect(Collectors.toList()))) {
                         }))
                 .uuid(uuid)
                 .build();
@@ -260,10 +282,10 @@ class GameControllerIT {
         System.out.println(message);
         assertThat(message).isNotNull();
         assertThat(message).isEqualTo(expectMessage);
-        sub.unsubscribe();
+
     }
 
-    //@Test
+    @Test
     public void 스테이지를_잘못_설정하여_게임시작요청하면_예외처리한다() throws Exception {
         //given
         TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
@@ -302,11 +324,11 @@ class GameControllerIT {
         assertThat(message).isNotNull();
         assertThat(message).isEqualTo(expectMessage);
         assertThrows(TimeoutException.class, () -> handler2.getCompletableFuture().get(3, SECONDS));
-        sub.unsubscribe();
-        sub2.unsubscribe();
+
+
     }
 
-    //@Test
+    @Test
     public void 방장이아닌사람이_게임시작요청하면_예외처리한다() throws Exception {
         //given
         TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
@@ -342,10 +364,10 @@ class GameControllerIT {
                 .build();
         assertThat(message).isEqualTo(expectMessage);
         assertThrows(TimeoutException.class, () -> handler2.getCompletableFuture().get(3, SECONDS));
-        sub2.unsubscribe();
+
     }
 
-    //@Test
+    @Test
     public void 게임시작요청시_필수파라미터가없으면_예외처리한다() throws Exception {
         //given
         TestSingleStompHandler<MessageContainer> handler1 = new TestSingleStompHandler<>(MessageContainer.class);
@@ -383,10 +405,10 @@ class GameControllerIT {
         assertThat(message).isNotNull();
         assertThat(message).isEqualTo(expectMessage);
         assertThrows(TimeoutException.class, () -> handler2.getCompletableFuture().get(3, SECONDS));
-        sub.unsubscribe();
+
     }
 
-    //@Test
+    @Test
     public void 라운드시작() throws Exception {
         __라운드시작();
         teardown();
@@ -412,7 +434,7 @@ class GameControllerIT {
 
         assertThat(message).isNotNull();
         assertThat(message).isEqualTo(expectMessage);
-        sub.unsubscribe();
+
     }
 
     private void __sendStartRound(String uuid) throws JsonProcessingException {
@@ -430,7 +452,7 @@ class GameControllerIT {
         }
     }
 
-    //@Test
+    @Test
     public void 라이어선정요청하면_private_라이어여부를_알려준다() throws Exception {
         __라이어선정();
         teardown();
@@ -481,8 +503,7 @@ class GameControllerIT {
             assertThat(messageToUser.getMessage().getBody()).isEqualTo(new LiarResponse(GameState.OPEN_KEYWORD, true));
         }
 
-        sub.unsubscribe();
-        sub2.unsubscribe();
+
     }
 
     private void __sendSelectLiar(String uuid) throws JsonProcessingException {
@@ -494,7 +515,7 @@ class GameControllerIT {
         stompSession.send(String.format("%s%s", PUBLISH_PRIVATE, roomId), objectMapper.writeValueAsString(sendMessage));
     }
 
-    //@Test
+    @Test
     public void 키워드공개를요청하면_각사람에게키워드를_private전달하고_첫번째턴사람을공개한다() throws Exception {
         __카테고리알림();
         teardown();
@@ -560,8 +581,8 @@ class GameControllerIT {
         assertThat(message2.getMessage().getMethod()).isEqualTo(Global.NOTIFY_TURN);
         assertThat(publicMessageToOwner.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(0));
         assertThat(publicMessageToUser.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(0));
-        sub.unsubscribe();
-        sub2.unsubscribe();
+
+
         sub3.unsubscribe();
         sub4.unsubscribe();
         return gameInfoResultFromOwner;
@@ -576,7 +597,7 @@ class GameControllerIT {
         stompSession.send(String.format("%s%s", PUBLISH_PRIVATE, roomId), objectMapper.writeValueAsString(sendMessage));
     }
 
-    //@Test
+    @Test
     public void 현재턴의사람이_대답후에_다음턴의사람을_알려준다() throws Exception {
         __턴알림();
         teardown();
@@ -609,11 +630,11 @@ class GameControllerIT {
         assertThat(message2.getMessage().getMethod()).isEqualTo(Global.NOTIFY_TURN);
         assertThat(publicMessageToOwner.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(1));
         assertThat(publicMessageToUser.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(1));
-        sub.unsubscribe();
-        sub2.unsubscribe();
+
+
     }
 
-    //@Test
+    @Test
     public void 턴알림_TimeOut시간을넘기면_턴이넘어간다() throws Exception {
         //Given
         gameController.setTimeout(5000);
@@ -641,7 +662,7 @@ class GameControllerIT {
         teardown();
     }
 
-    //@Test
+    @Test
     public void 모두의턴이끝나면_설명종료를알린다() throws Exception {
         __설명종료();
         teardown();
@@ -694,7 +715,7 @@ class GameControllerIT {
         }
     }
 
-    //@Test
+    @Test
     public void 모두가_투표를하면_투표결과를알려준다() throws Exception {
         __모두가_투표를하면_투표결과를알려준다();
         teardown();
@@ -711,7 +732,7 @@ class GameControllerIT {
         TestStompHandlerChain<MessageContainer> handler3 = new TestStompHandlerChain<>(MessageContainer.class);
         stompSession.subscribe(String.format("%s%s", SUBSCRIBE_PUBLIC, roomId), handler1);
         sessionInfoList.get(0).session.subscribe(String.format("%s%s", SUBSCRIBE_PUBLIC, roomId), handler2);
-        stompSession.subscribe(String.format("%s%s", SUBSCRIBE_PRIVATE, roomId), handler3);
+        stompSession.subscribe(String.format("%s%s", SUBSCRIBE_PRIVATE, ownerId), handler3);
 
         String uuid = UUID.randomUUID().toString();
         String guestId = sessionInfoList.get(0).guestId;
@@ -743,7 +764,7 @@ class GameControllerIT {
         assertThat(message1.getMessage()).isEqualTo(expectMessage.getMessage());
     }
 
-    //@Test
+    @Test
     public void 투표를안하면_타임아웃이난다() throws Exception {
         //Given
         gameController.setTimeout(5000);
@@ -809,7 +830,7 @@ class GameControllerIT {
         stompSession.send(String.format("%s%s", PUBLISH_PRIVATE, roomId), objectMapper.writeValueAsString(sendMessage));
     }
 
-    //@Test
+    @Test
     public void 동투표가_나올경우_재투표해야한다() throws Exception {
         //Given
         __설명종료();
@@ -877,7 +898,7 @@ class GameControllerIT {
         teardown();
     }
 
-    //@Test
+    @Test
     public void 라이어공개요청하면_라이어를모두에게알리고_라이어에게정답요청을한다() throws Exception {
         __라이어공개요청();
         teardown();
@@ -944,7 +965,7 @@ class GameControllerIT {
         stompSession.send(String.format("%s%s", PUBLISH_PRIVATE, roomId), objectMapper.writeValueAsString(sendMessage));
     }
 
-    //@Test
+    @Test
     public void 라이어정답제출했을때_맞춤() throws Exception {
         __라이어정답제출();
         teardown();
@@ -994,7 +1015,7 @@ class GameControllerIT {
         }
     }
 
-    //@Test
+    @Test
     public void 라이어가정답을말하지못하면_타임아웃이_난다() throws Exception {
         //Given
         gameController.setTimeout(5000);
@@ -1029,7 +1050,7 @@ class GameControllerIT {
         teardown();
     }
 
-    //@Test
+    @Test
     public void 라이어정답제출했을때_틀림() throws Exception {
         //Given
         __라이어공개요청();
@@ -1052,7 +1073,7 @@ class GameControllerIT {
         teardown();
     }
 
-    //@Test
+    @Test
     public void 라이어맞추고_라이어키워드맞췄을때_점수공개() throws Exception {
         __라운드점수공개();
         teardown();
@@ -1111,7 +1132,7 @@ class GameControllerIT {
         stompSession.send(String.format("%s%s", PUBLISH_PRIVATE, roomId), objectMapper.writeValueAsString(sendMessage));
     }
 
-    //@Test
+    @Test
     public void 게임이_종료될때까지진행하면_게임종료를알린다() throws Exception {
         //Given
         __라운드점수공개();
@@ -1168,10 +1189,10 @@ class GameControllerIT {
         }
 
         //Then
-        handler1 = new TestStompHandlerChain<>(MessageContainer.class);
-        handler2 = new TestStompHandlerChain<>(MessageContainer.class);
-        stompSession.subscribe(String.format("%s%s", SUBSCRIBE_PUBLIC, roomId), handler1);
-        sessionInfoList.get(0).session.subscribe(String.format("%s%s", SUBSCRIBE_PUBLIC, roomId), handler2);
+//        handler1 = new TestStompHandlerChain<>(MessageContainer.class);
+//        handler2 = new TestStompHandlerChain<>(MessageContainer.class);
+//        stompSession.subscribe(String.format("%s%s", SUBSCRIBE_PUBLIC, roomId), handler1);
+//        sessionInfoList.get(0).session.subscribe(String.format("%s%s", SUBSCRIBE_PUBLIC, roomId), handler2);
 
         __sendPublishRankings();
         MessageContainer message1 = handler1.getCompletableFuture(0);
@@ -1247,7 +1268,7 @@ class GameControllerIT {
 
         private CompletableFuture<T> __getCompletableFuture() throws InterruptedException {
             //System.out.println(LocalDateTime.now() + ":[TestStompHandlerChain] getCompletableFuture size:" + completableFuture.size());
-            return completableFuture.poll(10,SECONDS);
+            return completableFuture.poll(10, SECONDS);
         }
 
         public T getCompletableFuture(int index) throws ExecutionException, InterruptedException, TimeoutException {
@@ -1288,7 +1309,7 @@ class GameControllerIT {
             try {
                 completableFuture.put(future);
             } catch (InterruptedException e) {
-                System.out.println("데이터 저장에 실패했쌈 : "+headers.getDestination());
+                System.out.println("데이터 저장에 실패했쌈 : " + headers.getDestination());
                 throw new RuntimeException(e);
             }
 
