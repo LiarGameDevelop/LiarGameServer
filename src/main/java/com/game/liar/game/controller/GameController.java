@@ -30,6 +30,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
@@ -45,15 +46,15 @@ public class GameController {
     private final SimpMessagingTemplate messagingTemplate;
     private GameService gameService;
 
+    private final TaskScheduler taskScheduler;
+    @Setter
+    private long timeout = 20000;
+
     public GameController(SimpMessagingTemplate messagingTemplate, GameService gameService, TaskScheduler taskScheduler) {
         this.messagingTemplate = messagingTemplate;
         this.gameService = gameService;
         this.taskScheduler = taskScheduler;
     }
-
-    private final TaskScheduler taskScheduler;
-    @Setter
-    private long timeout = 20000;
 
     //TODO : refactoring
     @SneakyThrows
@@ -80,23 +81,23 @@ public class GameController {
     }
 
     @MessageMapping("/private/{roomId}")
-    public void handlePrivateMessage(@Payload String requestStr, @DestinationVariable("roomId") String string) throws JsonDeserializeException {
-        log.info("[private] message from room id({}) : {}", string, requestStr);
-        messageHandler(string, requestStr);
+    public void handlePrivateMessage(@Payload String requestStr, @DestinationVariable("roomId") String roomId) throws JsonDeserializeException {
+        log.info("[private] message from room id({}) : {}", roomId, requestStr);
+        messageHandler(roomId, requestStr);
     }
 
-    private void messageHandler(String string, String requestStr) throws JsonDeserializeException {
-        if (gameService.checkRoomExist(string)) {
-            MessageContainer request = null;
+    private void messageHandler(String roomId, String requestStr) throws JsonDeserializeException {
+        if (gameService.checkRoomExist(roomId)) {
+            MessageContainer request;
             try {
                 request = objectMapper.readValue(requestStr, MessageContainer.class);
             } catch (JsonProcessingException e) {
                 throw new JsonDeserializeException("JSON format doest not fit for JAVA object. Please check reference");
             }
             String method = request.getMessage().getMethod();
-            messageMapper.get(method).process(request, string);
+            messageMapper.get(method).process(request, roomId);
         } else {
-            log.error("mapped room id does not exist, room id : {}", string);
+            log.error("mapped room id does not exist, room id : {}", roomId);
         }
     }
 
@@ -108,8 +109,7 @@ public class GameController {
         UserDataDto user = event.getUser();
         if (roomId == null || user == null)
             throw new IllegalArgumentException("room id/user info should be required");
-        GameInfo gameInfo = gameService.getGame(roomId);
-        gameInfo.addUser(user);
+        gameService.addMember(roomId, user);
     }
 
     @EventListener
@@ -120,8 +120,7 @@ public class GameController {
         UserDataDto user = event.getUser();
         if (roomId == null || user == null)
             throw new IllegalArgumentException("room id/user info should be required");
-        GameInfo gameInfo = gameService.getGame(roomId);
-        gameInfo.deleteUser(user);
+        gameService.deleteMember(roomId, user);
 
         //TODO: user login/logout 한곳에서 관리
         LogoutInfo logoutInfo = new LogoutInfo(roomId, user.getUserId(), false);
@@ -136,17 +135,17 @@ public class GameController {
         boolean login;
     }
 
-    public void addRoom(String string, String ownerId) {
-        gameService.addGame(string, ownerId);
+    public void addRoom(String roomId, String ownerId) {
+        gameService.addGame(roomId, ownerId);
     }
 
-    public void removeRoom(String string) {
-        gameService.removeGame(string);
+    public void removeRoom(String roomId) {
+        gameService.removeGame(roomId);
     }
 
     @FunctionalInterface
     public interface ProcessGame {
-        void process(MessageContainer request, String string);
+        void process(MessageContainer request, String roomId);
     }
 
     ProcessGame getGameState = (request, roomId) -> {
@@ -164,7 +163,7 @@ public class GameController {
 
     ProcessGame startRound = (request, roomId) -> {
         GameInfo gameInfo = gameService.startRound(request, roomId);
-        RoundResponse body = new RoundResponse(gameInfo.getState(), gameInfo.getRound());
+        RoundResponse body = new RoundResponse(gameInfo.getState(), gameInfo.getCurrentRound());
         log.info("[API]startRound response : {}, room id: {}", body, roomId);
         sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_ROUND_STARTED, body), roomId);
     };
@@ -193,42 +192,43 @@ public class GameController {
         }
         //Notify first user turn after keyword opened
         log.info("[API]__requestTurnFinished call from server. [room:{}]", roomId);
+
         __requestTurnFinished(new MessageContainer(SERVER_ID, null, UUID.randomUUID().toString()), roomId);
     };
 
     ProcessGame requestTurnFinished = this::__requestTurnFinished;
 
-    private void __requestTurnFinished(MessageContainer request, String string) {
+    private void __requestTurnFinished(MessageContainer request, String roomId) {
         log.info("[API]requestTurnFinished request : {}", request);
         String senderId = request.getSenderId();
-        GameInfo gameInfo = gameService.updateTurn(senderId, string);
-        String clientId = gameInfo.getCurrentTurnId();
-        gameService.cancelTurnTimer(string);
+        GameInfo gameInfo = gameService.updateTurn(senderId, roomId);
+        String clientId = gameService.getCurrentTurnUser(roomId);
+        gameService.cancelTurnTimer(roomId);
 
         try {
-            if (gameInfo.isLastTurn()) {
-                __notifyFindingLiarEnd(new MessageContainer(SERVER_ID, null, UUID.randomUUID().toString()), string);
+            if (gameService.isLastTurn(roomId)) {
+                __notifyFindingLiarEnd(new MessageContainer(SERVER_ID, null, UUID.randomUUID().toString()), roomId);
                 return;
             } else {
                 TurnResponse body = new TurnResponse(gameInfo.getState(), clientId);
                 log.info("[API]requestTurnFinished response : {}", body);
-                sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_TURN, body), string);
-                __registerTurnTimeoutNotification(request, string, gameInfo);
+                sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_TURN, body), roomId);
+                __registerTurnTimeoutNotification(request, roomId);
             }
         } catch (NotAllowedActionException e) {
             //모든 turn이 끝났으므로 다음 state로 바꿔야함.
             log.info("[API]requestTurnFinished response exception: The round is over, change to next state");
         }
-        if (gameInfo.isLastTurn()) {
-            __notifyFindingLiarEnd(new MessageContainer(SERVER_ID, null, UUID.randomUUID().toString()), string);
+        if (gameService.isLastTurn(roomId)) {
+            __notifyFindingLiarEnd(new MessageContainer(SERVER_ID, null, UUID.randomUUID().toString()), roomId);
         }
     }
 
     ProcessGame voteLiar = this::__voteLiar;
 
     private void __voteLiar(MessageContainer request, String roomId) {
-        GameInfo gameInfo = gameService.voteLiar(request, roomId);
-        if (gameInfo.voteFinished()) {
+        gameService.voteLiar(request, roomId);
+        if (gameService.isVoteFinished(roomId)) {
             gameService.cancelVoteTimer(roomId);
             VoteResult voteResult = gameService.getMostVoted(roomId);
             log.info("[API]voteLiar response : {}", voteResult);
@@ -237,22 +237,25 @@ public class GameController {
 
             if (voteResult.getMostVoted() != null) {
                 if (voteResult.getMostVoted().size() == 1) {
-                    gameInfo.nextState();
-                    sendPrivateMessage(uuid, new MessageContainer.Message(NOTIFY_LIAR_OPEN_REQUEST, new GameStateResponse(gameInfo.getState())), gameInfo.getOwnerId());
+                    GameInfo gameInfo = gameService.nextGameState(roomId);
+                    sendPrivateMessage(
+                            uuid
+                            , new MessageContainer.Message(NOTIFY_LIAR_OPEN_REQUEST, new GameStateResponse(gameInfo.getState()))
+                            , gameInfo.getOwnerId());
                 } else {
-                    sendNeedVote(gameInfo, roomId);
+                    sendNeedVote(roomId);
                 }
             } else {
-                sendNeedVote(gameInfo, roomId);
+                sendNeedVote(roomId);
             }
         }
     }
 
-    private void sendNeedVote(GameInfo gameInfo, String string) {
+    private void sendNeedVote(String roomId) {
         String uuid = UUID.randomUUID().toString();
+        GameInfo gameInfo = gameService.resetVoteResult(roomId);
         GameStateResponse body = new GameStateResponse(gameInfo.getState());
-        gameInfo.resetVoteResult();
-        sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_NEW_VOTE_NEEDED, body), string);
+        sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_NEW_VOTE_NEEDED, body), roomId);
     }
 
     ProcessGame openLiar = (request, roomId) -> {
@@ -261,16 +264,16 @@ public class GameController {
         sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_OPENED, body), roomId);
 
         __notifyLiarAnswerNeeded(roomId);
-        __registerLiarAnswerTimeoutNotification(request, roomId, gameService.getGame(roomId));
+        __registerLiarAnswerTimeoutNotification(request, roomId);
     };
 
     ProcessGame checkKeywordCorrect = this::__checkKeywordCorrect;
 
-    private void __checkKeywordCorrect(MessageContainer request, String string) {
-        gameService.cancelAnswerTimer(string);
-        LiarAnswerResponse body = gameService.checkKeywordCorrect(request, string);
+    private void __checkKeywordCorrect(MessageContainer request, String roomId) {
+        gameService.cancelAnswerTimer(roomId);
+        LiarAnswerResponse body = gameService.checkKeywordCorrect(request, roomId);
         log.info("[API]checkKeywordCorrect response : {}", body);
-        sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_CORRECT, body), string);
+        sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_CORRECT, body), roomId);
     }
 
 
@@ -294,37 +297,37 @@ public class GameController {
         sendPrivateMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_GAME_CATEGORY, body), request.getSenderId());
     };
 
-    private void __notifyLiarAnswerNeeded(String string) {
-        GameInfo gameInfo = gameService.getGame(string);
+    private void __notifyLiarAnswerNeeded(String roomId) {
+        GameInfo gameInfo = gameService.getGame(roomId);
         String liar = gameInfo.getLiarId();
-        log.info("[API]notifyLiarAnswerNeeded from [room:{}]", string);
+        log.info("[API]notifyLiarAnswerNeeded from [room:{}]", roomId);
         sendPrivateMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_NEEDED, null), liar);
     }
 
-    private void __notifyFindingLiarEnd(MessageContainer request, String string) {
-        GameInfo gameInfo = gameService.notifyFindingLiarEnd(string);
-        log.info("[API]notifyFindingLiarEnd from [room:{}]", string);
-        RoundResponse body = new RoundResponse(gameInfo.getState(), gameInfo.getRound());
-        sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_FINDING_LIAR_END, body), string);
-        __registerVoteTimeoutNotification(request, string, gameInfo);
+    private void __notifyFindingLiarEnd(MessageContainer request, String roomId) {
+        GameInfo gameInfo = gameService.notifyFindingLiarEnd(roomId);
+        log.info("[API]notifyFindingLiarEnd from [room:{}]", roomId);
+        RoundResponse body = new RoundResponse(gameInfo.getState(), gameInfo.getCurrentRound());
+        sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_FINDING_LIAR_END, body), roomId);
+        __registerVoteTimeoutNotification(request, roomId);
     }
 
 
-    private void __notifyRoundEnd(MessageContainer request, String string) {
-        GameInfo gameInfo = gameService.notifyRoundEnd(string);
-        log.info("[API]notifyRoundEnd from [room:{}]", string);
-        RoundResponse body = new RoundResponse(gameInfo.getState(), gameInfo.getRound());
-        sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_ROUND_END, body), string);
+    private void __notifyRoundEnd(MessageContainer request, String roomId) {
+        GameInfo gameInfo = gameService.notifyRoundEnd(roomId);
+        log.info("[API]notifyRoundEnd from [room:{}]", roomId);
+        RoundResponse body = new RoundResponse(gameInfo.getState(), gameInfo.getCurrentRound());
+        sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_ROUND_END, body), roomId);
         gameInfo.resetVoteResult();
     }
 
-    private void __notifyGameEnd(String string) {
-        GameInfo gameInfo = gameService.getGame(string);
-        log.info("[API]notifyGameEnd from [room:{}]", string);
-        gameInfo.nextState();
+    private void __notifyGameEnd(String roomId) {
+        GameInfo gameInfo = gameService.getGame(roomId);
+        log.info("[API]notifyGameEnd from [room:{}]", roomId);
+        gameService.nextGameState(roomId);
         GameStateResponse body = new GameStateResponse(gameInfo.getState());
-        sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_GAME_END, body), string);
-        gameService.resetGame(string);
+        sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_GAME_END, body), roomId);
+        gameService.resetGame(roomId);
     }
 
     private final Map<String, ProcessGame> messageMapper = new HashMap<String, ProcessGame>() {
@@ -344,11 +347,14 @@ public class GameController {
         }
     };
 
-    private void __registerTurnTimeoutNotification(MessageContainer request, String roomId, GameInfo gameInfo) {
+    @Transactional
+    protected void __registerTurnTimeoutNotification(MessageContainer request, String roomId) {
         log.info("[API]register notifyTurnTimeout from [room:{}]", roomId);
         taskScheduler.schedule(new TimerTask() {
             @Override
             public void run() {
+                GameInfo gameInfo = gameService.getGame(roomId);
+                log.info("[API]timer run notifyTurnTimeout from [room:{}]", roomId);
                 if (!gameInfo.isTurnTimerRunning()) return;
                 log.info("[API]notifyTurnTimeout from [room:{}]", roomId);
                 sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_TURN_TIMEOUT, null), roomId);
@@ -356,14 +362,15 @@ public class GameController {
                 __requestTurnFinished(new MessageContainer(gameInfo.getCurrentTurnId(), null, UUID.randomUUID().toString()), roomId);
             }
         }, Instant.now().plusMillis(timeout));
-        gameInfo.startTurnTimer();
+        gameService.startTurnTimer(roomId);
     }
 
-    private void __registerVoteTimeoutNotification(MessageContainer request, String roomId, GameInfo gameInfo) {
+    private void __registerVoteTimeoutNotification(MessageContainer request, String roomId) {
         log.info("[API]register notifyVoteTimeout from [room:{}]", roomId);
         taskScheduler.schedule(new TimerTask() {
             @Override
             public void run() {
+                GameInfo gameInfo = gameService.getGame(roomId);
                 if (!gameInfo.isVoteTimerRunning()) return;
                 log.info("[API]notifyVoteTimeout from [room:{}]", roomId);
                 sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_VOTE_TIMEOUT, null), roomId);
@@ -378,26 +385,27 @@ public class GameController {
                 }
             }
         }, Instant.now().plusMillis(timeout));
-        gameInfo.startVoteTimer();
+        gameService.startVoteTimer(roomId);
     }
 
-    private void __registerLiarAnswerTimeoutNotification(MessageContainer request, String string, GameInfo gameInfo) {
-        log.info("[API]register notifyAnswerTimeout from [room:{}]", string);
+    private void __registerLiarAnswerTimeoutNotification(MessageContainer request, String roomId) {
+        log.info("[API]register notifyAnswerTimeout from [room:{}]", roomId);
         taskScheduler.schedule(new TimerTask() {
             @Override
             public void run() {
+                GameInfo gameInfo = gameService.getGame(roomId);
                 if (!gameInfo.isAnswerTimerRunning()) return;
-                log.info("[API]notifyLiarAnswerTimeout from [room:{}]", string);
-                sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_TIMEOUT, null), string);
+                log.info("[API]notifyLiarAnswerTimeout from [room:{}]", roomId);
+                sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_TIMEOUT, null), roomId);
                 //타임아웃났다고 알리고, checkKeywordCorrect 요청
                 __checkKeywordCorrect(new MessageContainer(gameInfo.getLiarId(),
                                 new MessageContainer.Message(CHECK_KEYWORD_CORRECT,
                                         new KeywordRequest("")),
                                 UUID.randomUUID().toString()),
-                        string);
+                        roomId);
             }
         }, Instant.now().plusMillis(timeout));
-        gameInfo.startAnswerTimer();
+        gameService.startAnswerTimer(roomId);
     }
 
     //TODO: introduce message service
@@ -411,14 +419,13 @@ public class GameController {
         messagingTemplate.convertAndSend(String.format("/subscribe/private/%s", receiver), response);
     }
 
-    public void sendPublicMessage(String uuid, MessageContainer.Message message, String string) {
+    public void sendPublicMessage(String uuid, MessageContainer.Message message, String roomId) {
         MessageContainer response = MessageContainer.messageContainerBuilder()
                 .uuid(uuid)
                 .senderId("SERVER")
                 .message(message)
                 .build();
-        log.info("Send public message. message: {}, [room:{}]", response, string);
-        messagingTemplate.convertAndSend(String.format("/subscribe/public/%s", string), response);
+        log.info("Send public message. message: {}, [room:{}]", response, roomId);
+        messagingTemplate.convertAndSend(String.format("/subscribe/public/%s", roomId), response);
     }
 }
-

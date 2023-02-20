@@ -1,25 +1,30 @@
 package com.game.liar.game.domain;
 
 
-import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.game.liar.game.dto.MessageBody;
+import com.game.liar.exception.NotExistException;
 import com.game.liar.room.dto.UserDataDto;
-import lombok.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
+import javax.persistence.*;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
 @ToString
+@Entity
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class GameInfo {
     @Getter
-    private boolean isTurnTimerRunning;
+    private boolean turnTimerRunning;
     @Getter
-    private boolean isVoteTimerRunning;
+    private boolean voteTimerRunning;
     @Getter
-    private boolean isAnswerTimerRunning;
+    private boolean answerTimerRunning;
+    @Enumerated
     private GameState state;
 
     public GameState getState() {
@@ -28,142 +33,142 @@ public class GameInfo {
         }
     }
 
+    @Id
     @Getter
     private String roomId;
     @Getter
     private String ownerId;
-    @Getter
-    private final List<UserDataDto> gameUserList = new ArrayList<>();
 
     @Getter
-    @Setter
+    @Embedded
     private GameSettings gameSettings;
 
     //Current round info
     @Getter
-    private Integer round;
+    private Integer currentRound;
     @Getter
-    private Integer turn;
-    @Getter
-    private Map<String, List<String>> selectedByRoomOwnerCategory;
-
+    private Integer currentTurn;
     @Getter
     private String liarId;
     @Getter
-    @Setter
     private String currentRoundCategory;
     @Getter
-    @Setter
     private String currentRoundKeyword;
     /**
      * TODO: 유저가 중간에 나가는경우도 고려해야함
      */
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "turn_order",
+            joinColumns = @JoinColumn(name = "game_id")
+    )
+    @OrderColumn(name = "line_index")
     @Getter
-    @Setter
-    private List<String> turnOrder;
+    private List<String> turnOrder = new ArrayList<>(); //밸류 타입
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "vote_result",
+            joinColumns = @JoinColumn(name = "game_id")
+    )
+    @MapKeyColumn(name = "vote_from")
     @Getter
-    @Setter
-    private Map<String, String> voteResult = new ConcurrentHashMap<>();
+    private Map<String, String> voteResult = new HashMap<>(); //밸류타입
     @Getter
     private Integer voteCount = 0;
 
     @Getter
-    @Setter
     private boolean liarAnswer;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(
+            name = "score_board",
+            joinColumns = @JoinColumn(name = "game_id")
+    )
+    @MapKeyColumn(name = "user_id")
     @Getter
-    private Map<String, Integer> scoreboard = new ConcurrentHashMap<>();
+    private Map<String, Integer> scoreboard = new HashMap<>(); //밸류타입
 
     public String getCurrentTurnId() {
         synchronized (this) {
-            log.info("[getCurrentTurnId] turn : {}", turn);
-            if (turn >= turnOrder.size())
-                return turnOrder.get(turn % turnOrder.size());
-            return turnOrder.get(turn);
+            log.info("[getCurrentTurnId] turn : {} turnOrder{}", currentTurn, turnOrder);
+            if (currentTurn >= turnOrder.size())
+                return turnOrder.get(currentTurn % turnOrder.size());
+            return turnOrder.get(currentTurn);
         }
     }
 
     public void initialize(Map<String, List<String>> subjects, List<String> categoryList) {
-        round = 0;
-        turn = -1;
-        initializeCategory(subjects, categoryList);
+        currentRound = 0;
+        currentTurn = -1;
+        gameSettings.initializeCategory(subjects, categoryList);
     }
 
     public void nextRound() {
-        round++;
+        currentRound++;
     }
 
     public void nextTurn() {
         synchronized (this) {
-            turn++;
-            log.info("current turn is {}, room id : {}", turn, roomId);
+            currentTurn++;
+            log.info("current turn is {}, room id : {}", currentTurn, roomId);
         }
     }
 
     public void resetTurn() {
-        turn = -1;
+        currentTurn = -1;
     }
 
-    public void setLiar(String liar) {
+    public void selectLiar(String liar) {
         liarId = liar;
     }
 
     public void addUser(UserDataDto gameUser) {
-        gameUserList.add(gameUser);
         scoreboard.put(gameUser.getUserId(), 0);
     }
 
     public void deleteUser(UserDataDto gameUser) {
-        gameUserList.remove(gameUser);
         scoreboard.remove(gameUser.getUserId());
-    }
-
-    public boolean isUserInTheRoom(String userId) {
-        return gameUserList.stream().anyMatch(user -> user.getUserId().equals(userId));
     }
 
     public void cancelTurnTimer() {
         log.info("cancel turn timer [room:{}]", roomId);
-        isTurnTimerRunning = false;
+        turnTimerRunning = false;
     }
 
     public void cancelVoteTimer() {
         log.info("cancel vote timer [room:{}]", roomId);
-        isVoteTimerRunning = false;
+        voteTimerRunning = false;
     }
 
     public void cancelAnswerTimer() {
         log.info("cancel liar answer timer [room:{}]", roomId);
-        isAnswerTimerRunning = false;
+        answerTimerRunning = false;
     }
 
     public void startTurnTimer() {
-        log.info("cancel turn timer [room:{}]", roomId);
-        isTurnTimerRunning = true;
+        log.info("start turn timer [room:{}]", roomId);
+        turnTimerRunning = true;
     }
 
     public void startVoteTimer() {
-        log.info("cancel vote timer [room:{}]", roomId);
-        isVoteTimerRunning = true;
+        log.info("start vote timer [room:{}]", roomId);
+        voteTimerRunning = true;
     }
 
     public void startAnswerTimer() {
-        log.info("cancel liar answer timer [room:{}]", roomId);
-        isAnswerTimerRunning = true;
+        log.info("start liar answer timer [room:{}]", roomId);
+        answerTimerRunning = true;
     }
 
     public boolean isLastTurn() {
-        synchronized (this) {
-            return turn == turnOrder.size() * gameSettings.turn;
-        }
+        return currentTurn == (turnOrder.size() * gameSettings.getTurn());
     }
 
     public void addVoteResult(String from, String liarDesignatedId) {
-        log.info("user[{}] -> liar [{}]", from, liarDesignatedId);
         voteResult.put(from, liarDesignatedId);
-
         voteCount++;
+        log.info("user[{}] -> liar [{}]. voteCount : {}", from, liarDesignatedId, voteCount);
     }
 
     public boolean checkVoteCompleted(String from) {
@@ -205,7 +210,7 @@ public class GameInfo {
             Integer score = scoreboard.get(liarId);
             scoreboard.replace(liarId, score + 1);
         }
-        log.info("scoreBoard : {}", scoreboard);
+        log.info("[roomId:{}] scoreBoard : {}", roomId, scoreboard);
     }
 
     public boolean isUsersMatchLiar() {
@@ -214,7 +219,8 @@ public class GameInfo {
         return getMostVotedUserIdAndCount().get(0).getKey().equals(liarId);
     }
 
-    public synchronized boolean voteFinished() {
+    public boolean voteFinished() {
+        log.info("turn order form voteFinished:{}, vote count :{},vote result :{}", turnOrder, voteCount,voteResult);
         return voteCount == turnOrder.size();
     }
 
@@ -236,43 +242,8 @@ public class GameInfo {
         liarId = null;
     }
 
-    @Getter
-    @Setter
-    @NoArgsConstructor
-    @AllArgsConstructor
-    @Builder
-    @JsonTypeName("gameSettings")
-    public static class GameSettings extends MessageBody {
-        private Integer round;
-        private Integer turn;
-        private List<String> category;
-
-        @Override
-        public String toString() {
-            return "{" + "\"round\":" + round + ", \"turn\":" + turn + ", \"category\": [" + category + "]}";
-        }
-    }
-
-    public void initializeCategory(Map<String, List<String>> subjects, List<String> categoryList) {
-        log.info("subjects = {}, categories = {}", subjects, categoryList);
-        selectedByRoomOwnerCategory = new ConcurrentHashMap<>();
-
-        for (String category : categoryList) {
-            if (!gameSettings.getCategory().contains(category))
-                continue;
-            List<String> predefinedKeywords = subjects.get(category);
-            if (predefinedKeywords != null) {
-                selectedByRoomOwnerCategory.put(category, predefinedKeywords);
-            }
-        }
-    }
-
     public List<String> getCategory() {
-        return new ArrayList<>(selectedByRoomOwnerCategory.keySet());
-    }
-
-    public void addCustomCategory(String subject, List<String> keywordList) {
-        selectedByRoomOwnerCategory.put(subject, keywordList);
+        return new ArrayList<>(gameSettings.getSelectedByRoomOwnerCategory().keySet());
     }
 
     public GameInfo(String roomId, String ownerId) {
@@ -289,7 +260,25 @@ public class GameInfo {
         return state = state.loop();
     }
 
-    public GameState setState(GameState gameState) {
-        return state = gameState;
+    public void initializeRoundKeyword(String keyword) {
+        currentRoundKeyword = keyword;
+    }
+
+    public void initializeRoundCategory(String category) {
+        currentRoundCategory = category;
+    }
+
+    public void initializeRoundTurnOrder(List<String> valuesList) {
+        if (valuesList == null || valuesList.isEmpty())
+            throw new NotExistException("[initializeRoundTurnOrder] value list not exist");
+        turnOrder = valuesList;
+    }
+
+    public void setLiarAnswer(boolean answer) {
+        liarAnswer = answer;
+    }
+
+    public void setGameSettings(GameSettings settings) {
+        this.gameSettings = settings;
     }
 }

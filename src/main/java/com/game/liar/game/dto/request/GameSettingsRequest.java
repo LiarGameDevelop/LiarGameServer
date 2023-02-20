@@ -1,6 +1,7 @@
 package com.game.liar.game.dto.request;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.game.liar.game.domain.GameSettings;
 import com.game.liar.game.dto.MessageBody;
 import com.game.liar.game.domain.GameInfo;
 import lombok.*;
@@ -19,8 +20,8 @@ public class GameSettingsRequest extends MessageBody {
     private Integer turn;
     private List<String> category;
 
-    public GameInfo.GameSettings toEntity() {
-        return GameInfo.GameSettings.builder()
+    public GameSettings toEntity() {
+        return GameSettings.builder()
                 .round(round)
                 .turn(turn)
                 .category(category)

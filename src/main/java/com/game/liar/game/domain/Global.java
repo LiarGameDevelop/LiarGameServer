@@ -7,9 +7,7 @@ public class Global {
     /**
      * Server -> Client method
      **/
-    public static final String NOTIFY_MEMBER_ENTERED = "notifyMemberEntered";
     public static final String NOTIFY_GAME_STARTED = "notifyGameStarted";
-    public static final String NOTIFY_MEMBER_LEFT = "notifyMemberLeft";
     public static final String NOTIFY_ROUND_STARTED = "notifyRoundStarted";
     public static final String NOTIFY_LIAR_SELECTED = "notifyLiarSelected";
     public static final String NOTIFY_KEYWORD_OPENED = "notifyKeywordOpened";
@@ -55,7 +53,7 @@ public class Global {
     public enum MessageType {
         MESSAGE,
         DESCRIPTION
-    };
+    }
 
     public static Map<String, String> apiRequestMapper = new HashMap<String, String>() {{
         put(START_GAME, NOTIFY_GAME_STARTED);
@@ -68,7 +66,7 @@ public class Global {
         put(CHECK_KEYWORD_CORRECT, NOTIFY_LIAR_ANSWER_CORRECT);
         put(OPEN_SCORES, NOTIFY_SCORES);
         put(PUBLISH_RANKINGS, NOTIFY_RANKINGS_PUBLISHED);
-        put(GET_GATE_STATE,NOTIFY_GAME_STATE);
-        put(GET_GAME_CATEGORY,NOTIFY_GAME_CATEGORY);
+        put(GET_GATE_STATE, NOTIFY_GAME_STATE);
+        put(GET_GAME_CATEGORY, NOTIFY_GAME_CATEGORY);
     }};
 }
