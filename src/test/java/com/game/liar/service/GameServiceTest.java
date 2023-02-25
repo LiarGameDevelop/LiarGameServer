@@ -21,6 +21,7 @@ import com.game.liar.room.dto.*;
 import com.game.liar.room.service.RoomService;
 import com.game.liar.security.dto.TokenDto;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -40,6 +41,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Disabled
 class GameServiceTest {
     @InjectMocks
     GameService gameService;

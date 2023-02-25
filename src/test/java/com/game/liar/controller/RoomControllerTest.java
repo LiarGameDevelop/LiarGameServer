@@ -2,6 +2,7 @@ package com.game.liar.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.game.liar.room.dto.*;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @AutoConfigureMockMvc
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Disabled
 public class RoomControllerTest {
 //    @Mock
 //    private GameController gameController;

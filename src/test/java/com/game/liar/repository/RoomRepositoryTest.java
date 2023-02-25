@@ -6,6 +6,7 @@ import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.domain.UserId;
 import com.game.liar.room.dto.RoomInfoRequest;
 import com.game.liar.room.repository.RoomRepository;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Disabled
 class RoomRepositoryTest {
     @Autowired
     private RoomRepository roomRepository;

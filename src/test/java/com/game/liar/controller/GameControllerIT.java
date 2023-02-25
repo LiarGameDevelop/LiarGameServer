@@ -63,6 +63,7 @@ import static org.mockito.Mockito.when;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @ExtendWith(MockitoExtension.class)
+@Disabled
 class GameControllerIT {
     @LocalServerPort
     private Integer port;

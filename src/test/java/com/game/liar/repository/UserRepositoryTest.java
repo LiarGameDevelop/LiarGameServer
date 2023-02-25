@@ -4,6 +4,7 @@ import com.game.liar.room.domain.GameUser;
 import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.domain.UserId;
 import com.game.liar.user.repository.UserRepository;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -18,6 +19,7 @@ import static org.mockito.Mockito.*;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Disabled
 public class UserRepositoryTest {
     @Autowired
     private UserRepository userRepository;

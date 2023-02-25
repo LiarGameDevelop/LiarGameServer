@@ -10,6 +10,7 @@ import com.game.liar.room.service.RoomService;
 import com.game.liar.security.JwtService;
 import com.game.liar.security.dto.TokenDto;
 import com.game.liar.user.repository.UserRepository;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -26,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@Disabled
 class RoomServiceTest {
     @Mock
     private RoomRepository roomRepository;

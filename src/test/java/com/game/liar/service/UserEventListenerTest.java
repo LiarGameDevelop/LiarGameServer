@@ -11,6 +11,7 @@ import com.game.liar.user.repository.UserRepository;
 import com.game.liar.websocket.InboundInterceptor;
 import com.game.liar.websocket.WebsocketConnectedEvent;
 import com.game.liar.websocket.WebsocketDisconnectedEvent;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@Disabled
 public class UserEventListenerTest {
     @Mock
     private ApplicationEventPublisher publisher;

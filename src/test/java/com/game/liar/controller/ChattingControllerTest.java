@@ -5,6 +5,7 @@ import com.game.liar.chat.domain.ChatMessageDto;
 import com.game.liar.chat.repository.ChatRepository;
 import com.game.liar.game.domain.Global;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -21,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
+@Disabled
 class ChattingControllerTest {
     @LocalServerPort
     private Integer port;

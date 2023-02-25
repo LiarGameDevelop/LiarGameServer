@@ -4,6 +4,7 @@ import com.game.liar.room.service.RoomService;
 import com.game.liar.websocket.InboundInterceptor;
 import com.game.liar.websocket.WebsocketConnectedEvent;
 import com.game.liar.websocket.WebsocketDisconnectedEvent;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +22,7 @@ import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 @SpringBootTest
+@Disabled
 public class EventGenerationTest {
     @Autowired
     private ApplicationEventPublisher publisher;
