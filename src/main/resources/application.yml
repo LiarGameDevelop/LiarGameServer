@@ -14,7 +14,7 @@ spring:
     pathmatch:
       matching-strategy: ant_path_matcher
   jpa:
-    show-sql: true
+    show-sql: false
     hibernate:
       ddl-auto: create
     properties:
@@ -34,6 +34,11 @@ chat:
   destinations:
     login: "/subscribe/room.login/"
     logout: "/subscribe/room.logout/"
+
+rabbitmq:
+  username: ENC(PGk5csF3O3aPSZCkMVic5Q==)
+  password: ENC(34qp2Zzfp7zTmZheMU+hoeAVdv+1pFmS)
+  host: 27.96.135.109
 
 category:
   keywords:

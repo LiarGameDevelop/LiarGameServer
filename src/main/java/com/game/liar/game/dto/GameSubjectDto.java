@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 @Getter
+
 @NoArgsConstructor
 @ToString
 @AllArgsConstructor
@@ -15,6 +16,6 @@ public class GameSubjectDto {
     String keyword;
 
     public GameSubject toEntity() {
-        return new GameSubject(category,keyword);
+        return new GameSubject(category, keyword);
     }
 }

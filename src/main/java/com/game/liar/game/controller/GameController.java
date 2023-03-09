@@ -21,13 +21,12 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,14 +42,16 @@ import static com.game.liar.game.domain.Global.*;
 public class GameController {
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    private final SimpMessagingTemplate messagingTemplate;
+    //private final SimpMessagingTemplate messagingTemplate;
+    private final RabbitTemplate messagingTemplate;
     private GameService gameService;
 
     private final TaskScheduler taskScheduler;
     @Setter
     private long timeout = 20000;
 
-    public GameController(SimpMessagingTemplate messagingTemplate, GameService gameService, TaskScheduler taskScheduler) {
+    //public GameController(SimpMessagingTemplate messagingTemplate, GameService gameService, TaskScheduler taskScheduler) {
+    public GameController(RabbitTemplate messagingTemplate, GameService gameService, TaskScheduler taskScheduler) {
         this.messagingTemplate = messagingTemplate;
         this.gameService = gameService;
         this.taskScheduler = taskScheduler;
@@ -59,28 +60,33 @@ public class GameController {
     //TODO : refactoring
     @SneakyThrows
     @MessageExceptionHandler
-    @SendToUser(destinations = "/subscribe/errors", broadcast = false)
-    public MessageContainer LiarGameExceptionHandler(LiarGameException ex, String requestStr) {
+    //@SendToUser(destinations = "/subscribe/errors", broadcast = false)
+    public void LiarGameExceptionHandler(LiarGameException ex, String requestStr) {
+        log.info("LiarGameExceptionHandler error {} from [request:{}]", ex.getMessage(), requestStr);
         MessageContainer request;
         try {
             request = objectMapper.readValue(requestStr, MessageContainer.class);
         } catch (JsonProcessingException e) {
-            log.info("Json Parsing error : ex from [request:{}]", requestStr);
-            return MessageContainer.messageContainerBuilder()
-                    .senderId("SERVER")
-                    .message(new MessageContainer.Message(null, new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage())))))
-                    .build();
+            log.error("Json Parsing error : ex from [request:{}]", requestStr);
+//            return MessageContainer.messageContainerBuilder()
+//                    .senderId("SERVER")
+//                    .message(new MessageContainer.Message(null, new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage())))))
+//                    .build();
+            return;
         }
-        return MessageContainer.messageContainerBuilder()
-                .uuid(request.getUuid())
-                .senderId("SERVER")
-                .message(new MessageContainer.Message(
-                        apiRequestMapper.get(request.getMessage().getMethod()) != null ? apiRequestMapper.get(request.getMessage().getMethod()) : "METHOD_ERROR"
-                        , new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage())))))
-                .build();
+//        return MessageContainer.messageContainerBuilder()
+//                .uuid(request.getUuid())
+//                .senderId("SERVER")
+//                .message(new MessageContainer.Message(
+//                        apiRequestMapper.get(request.getMessage().getMethod()) != null ? apiRequestMapper.get(request.getMessage().getMethod()) : "METHOD_ERROR"
+//                        , new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage())))))
+//                .build();
+        sendErrorMessage(request.getUuid(), new MessageContainer.Message(
+                apiRequestMapper.get(request.getMessage().getMethod()) != null ? apiRequestMapper.get(request.getMessage().getMethod()) : "METHOD_ERROR"
+                , new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage())))), request.getSenderId());
     }
 
-    @MessageMapping("/private/{roomId}")
+    @MessageMapping("private.{roomId}")
     public void handlePrivateMessage(@Payload String requestStr, @DestinationVariable("roomId") String roomId) throws JsonDeserializeException {
         log.info("[private] message from room id({}) : {}", roomId, requestStr);
         messageHandler(roomId, requestStr);
@@ -151,7 +157,7 @@ public class GameController {
     ProcessGame getGameState = (request, roomId) -> {
         GameInfo gameInfo = gameService.getGameState(roomId);
         GameStateResponse body = new GameStateResponse(gameInfo.getState());
-        sendPrivateMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_GAME_STATE, body), request.getSenderId());
+        sendPrivateMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_GAME_STATE, body), request.getSenderId(), roomId);
     };
 
     ProcessGame startGame = (request, roomId) -> {
@@ -174,7 +180,7 @@ public class GameController {
             boolean isLiar = userId.equals(gameInfo.getLiarId());
             LiarResponse body = new LiarResponse(gameInfo.getState(), isLiar);
             log.info("[API]selectLiar response : {} to user : {}", body, userId);
-            sendPrivateMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_LIAR_SELECTED, body), userId);
+            sendPrivateMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_LIAR_SELECTED, body), userId, roomId);
         }
     };
 
@@ -188,7 +194,7 @@ public class GameController {
                     .turnOrder(gameInfo.getTurnOrder())
                     .build();
             log.info("[API]openKeyword response : {}", body);
-            sendPrivateMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_KEYWORD_OPENED, body), userId);
+            sendPrivateMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_KEYWORD_OPENED, body), userId, roomId);
         }
         //Notify first user turn after keyword opened
         log.info("[API]__requestTurnFinished call from server. [room:{}]", roomId);
@@ -241,7 +247,8 @@ public class GameController {
                     sendPrivateMessage(
                             uuid
                             , new MessageContainer.Message(NOTIFY_LIAR_OPEN_REQUEST, new GameStateResponse(gameInfo.getState()))
-                            , gameInfo.getOwnerId());
+                            , gameInfo.getOwnerId()
+                            , roomId);
                 } else {
                     sendNeedVote(roomId);
                 }
@@ -256,6 +263,7 @@ public class GameController {
         GameInfo gameInfo = gameService.resetVoteResult(roomId);
         GameStateResponse body = new GameStateResponse(gameInfo.getState());
         sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_NEW_VOTE_NEEDED, body), roomId);
+        __registerVoteTimeoutNotification(new MessageContainer("SERVER", null, uuid), roomId);
     }
 
     ProcessGame openLiar = (request, roomId) -> {
@@ -294,14 +302,14 @@ public class GameController {
     ProcessGame getGameCategory = (request, roomId) -> {
         GameCategoryResponse body = gameService.getGameCategory(roomId);
         log.info("[API]getGameCategory response : {}", body);
-        sendPrivateMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_GAME_CATEGORY, body), request.getSenderId());
+        sendPrivateMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_GAME_CATEGORY, body), request.getSenderId(), roomId);
     };
 
     private void __notifyLiarAnswerNeeded(String roomId) {
         GameInfo gameInfo = gameService.getGame(roomId);
         String liar = gameInfo.getLiarId();
         log.info("[API]notifyLiarAnswerNeeded from [room:{}]", roomId);
-        sendPrivateMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_NEEDED, null), liar);
+        sendPrivateMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_NEEDED, null), liar, roomId);
     }
 
     private void __notifyFindingLiarEnd(MessageContainer request, String roomId) {
@@ -318,7 +326,7 @@ public class GameController {
         log.info("[API]notifyRoundEnd from [room:{}]", roomId);
         RoundResponse body = new RoundResponse(gameInfo.getState(), gameInfo.getCurrentRound());
         sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_ROUND_END, body), roomId);
-        gameInfo.resetVoteResult();
+        gameService.resetVoteResult(roomId);
     }
 
     private void __notifyGameEnd(String roomId) {
@@ -408,15 +416,17 @@ public class GameController {
         gameService.startAnswerTimer(roomId);
     }
 
+
     //TODO: introduce message service
-    public void sendPrivateMessage(String uuid, MessageContainer.Message message, String receiver) {
+    public void sendPrivateMessage(String uuid, MessageContainer.Message message, String receiver, String roomId) {
         MessageContainer response = MessageContainer.messageContainerBuilder()
                 .uuid(uuid)
                 .senderId("SERVER")
                 .message(message)
                 .build();
         log.info("Send private message. message: {}, [receiver:{}]", response, receiver);
-        messagingTemplate.convertAndSend(String.format("/subscribe/private/%s", receiver), response);
+        //messagingTemplate.convertAndSend(String.format("/subscribe/private/%s", receiver), response);
+        messagingTemplate.convertAndSend("message.direct", String.format("room.%s.user.%s", roomId, receiver), response); //queue에 직접
     }
 
     public void sendPublicMessage(String uuid, MessageContainer.Message message, String roomId) {
@@ -426,6 +436,17 @@ public class GameController {
                 .message(message)
                 .build();
         log.info("Send public message. message: {}, [room:{}]", response, roomId);
-        messagingTemplate.convertAndSend(String.format("/subscribe/public/%s", roomId), response);
+        //messagingTemplate.convertAndSend(String.format("/subscribe/public/%s", roomId), response);
+        messagingTemplate.convertAndSend("amq.topic", String.format("room.%s.user.*", roomId), response);
+    }
+
+    public void sendErrorMessage(String uuid, MessageContainer.Message message, String receiver) {
+        MessageContainer response = MessageContainer.messageContainerBuilder()
+                .uuid(uuid)
+                .senderId("SERVER")
+                .message(message)
+                .build();
+        log.info("Send error message. message: {}, [receiver:{}]", response, receiver);
+        messagingTemplate.convertAndSend("message.error", String.format("user.%s", receiver), response);
     }
 }

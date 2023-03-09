@@ -9,10 +9,10 @@ import java.util.Objects;
 @Table
 @Entity
 @ToString
-public class GameSubject implements Comparable<GameSubject>{
+public class GameSubject implements Comparable<GameSubject> {
     @Id
-    @Column(name = "id", nullable = false)
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
 
     @Column(nullable = false)
@@ -21,10 +21,9 @@ public class GameSubject implements Comparable<GameSubject>{
     @Column(nullable = false)
     private String category;
 
-    protected GameSubject() {
-    }
+    protected GameSubject() {}
 
-    public GameSubject(String category,String keyword) {
+    public GameSubject(String category, String keyword) {
         setCategory(category);
         setKeyword(keyword);
     }
@@ -66,7 +65,7 @@ public class GameSubject implements Comparable<GameSubject>{
 
     @Override
     public int compareTo(GameSubject o) {
-        if(category.compareTo(o.category) == 0){
+        if (category.compareTo(o.category) == 0) {
             return keyword.compareTo(o.keyword);
         }
         return category.compareTo(o.category);

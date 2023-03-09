@@ -97,7 +97,7 @@ public class InboundInterceptor implements ChannelInterceptor {
                 //loginAccessor.setNativeHeader(AUTHORIZATION_HEADER, accessor.getNativeHeader(AUTHORIZATION_HEADER).get(0));
                 loginAccessor.setSessionId(accessor.getSessionId());
                 loginAccessor.setSessionAttributes(accessor.getSessionAttributes());
-                loginAccessor.setDestination(String.format("/subscribe/room.%s/%s", login, roomId));
+                loginAccessor.setDestination(String.format("/topic/room.%s.%s", login, roomId));
                 channel.send(MessageBuilder.createMessage(msgJson.getBytes(StandardCharsets.UTF_8), loginAccessor.getMessageHeaders()));
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);

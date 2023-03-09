@@ -3,9 +3,11 @@ package com.game.liar.websocket.config;
 import com.game.liar.exception.StompErrorHandler;
 import com.game.liar.websocket.InboundInterceptor;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -21,14 +23,29 @@ public class StompConfig implements WebSocketMessageBrokerConfigurer {
     private final StompErrorHandler stompErrorHandler;
     private final InboundInterceptor channelInboundInterceptor;
 
+    @Value("${rabbitmq.host}")
+    private String host;
+    @Value("${rabbitmq.username}")
+    private String username;
+    @Value("${rabbitmq.password}")
+    private String password;
+
     /**
      * TODO: 다른 메세지브로커 사용할 수도 있음
      * memory 기반 simple message broker
      **/
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/subscribe"); //subscribe가 붙은 클라이언트 전부에 전달
+        registry.setPathMatcher(new AntPathMatcher("."));
         registry.setApplicationDestinationPrefixes("/publish");
+
+        registry.enableStompBrokerRelay("/queue", "/topic", "/exchange", "/amq/queue")
+                .setRelayHost(host)
+                .setRelayPort(61613)
+                .setSystemLogin(username)
+                .setSystemPasscode(password)
+                .setClientLogin(username)
+                .setClientPasscode(password);
     }
 
     @Override

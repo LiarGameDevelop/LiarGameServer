@@ -390,7 +390,7 @@ public class GameService {
     }
 
     @Transactional
-    private void initializeGameInfo(GameInfo gameInfo) {
+    public void initializeGameInfo(GameInfo gameInfo) {
         gameSubjectService.loadInitialCategory();
         gameInfo.initialize(gameSubjectService.getAllSubject(), gameSubjectService.getAllCategory());
     }

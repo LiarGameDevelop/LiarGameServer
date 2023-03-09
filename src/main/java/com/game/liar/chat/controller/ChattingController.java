@@ -20,9 +20,9 @@ public class ChattingController {
         this.simpMessagingTemplate = simpMessagingTemplate;
     }
 
-    @MessageMapping("/messages/{roomId}")
+    @MessageMapping("messages.{roomId}")
     public void chat(@Payload ChatMessageDto message, @DestinationVariable("roomId") String roomId) {
         chattingService.save(message,roomId);
-        simpMessagingTemplate.convertAndSend(String.format("/subscribe/room/%s/chat", roomId), message);
+        simpMessagingTemplate.convertAndSend(String.format("/topic/room.%s.chat", roomId), message);
     }
 }

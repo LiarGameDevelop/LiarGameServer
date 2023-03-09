@@ -5,6 +5,7 @@ import com.game.liar.game.dto.GameSubjectDto;
 import com.game.liar.game.service.GameSubjectService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,17 +28,17 @@ public class GameSubjectController {
         return response;
     }
 
-    @PostMapping("/game/subject")
-    public ResponseEntity.BodyBuilder addSubject(@RequestBody GameSubjectDto request) {
+    @PostMapping(value = "/game/subject")
+    public ResponseEntity<String> addSubject(@RequestBody GameSubjectDto request) {
         log.info("[addSubject] request {}", request);
         gameSubjectService.addSubject(request);
-        return ResponseEntity.ok();
+        return ResponseEntity.status(HttpStatus.OK).body(null);
     }
 
     @PostMapping("/game/subjects")
-    public ResponseEntity.BodyBuilder addSubjects(@RequestBody List<GameSubjectDto> request) {
+    public ResponseEntity<String> addSubjects(@RequestBody List<GameSubjectDto> request) {
         log.info("[addSubject] request {}", request);
         gameSubjectService.addSubjects(request);
-        return ResponseEntity.ok();
+        return ResponseEntity.status(HttpStatus.OK).body(null);
     }
 }

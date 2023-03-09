@@ -2,6 +2,7 @@ package com.game.liar.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.game.liar.room.dto.*;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -140,31 +141,32 @@ public class RoomControllerTest {
         System.out.println("result =" + result);
     }
 
-//    @Test
-//    @Transactional
-//    @DisplayName("방나가기")
-//    public void leaveRoom() throws Exception {
-//        //Given
-//        EnterRoomResponse roomInfoFromOwner = createRoom();
-//        String roomId = roomInfoFromOwner.getRoom().getRoomId();
-//        String accessTokenFromOwner = roomInfoFromOwner.getToken().getAccessToken();
-//
-//        //When
-//        EnterRoomResponse roomInfoFromGuest = enterRoom(roomId, "guest1");
-//        EnterRoomResponse roomInfoFromGuest2 = enterRoom(roomId, "guest2");
-//        EnterRoomResponse roomInfoFromGuest3 = enterRoom(roomId, "guest3");
-//        EnterRoomResponse roomInfoFromGuest4 = enterRoom(roomId, "guest4");
-//
-//        //Then
-//        assertThat(roomInfoFromGuest.getToken().getAccessToken()).isNotEqualTo(accessTokenFromOwner);
-//        ObjectMapper om = new ObjectMapper();
-//        RoomIdUserIdRequest request = new RoomIdUserIdRequest(roomId, roomInfoFromGuest.getUser().getUserId());
-//        String result = mockMvc.perform(
-//                        post("/room/leave")
-//                                .contentType(MediaType.APPLICATION_JSON)
-//                                .content(om.writeValueAsString(request)))
-//                .andExpect(status().isOk())
-//                .andReturn().getResponse().getContentAsString();
-//        System.out.println("result =" + result);
-//    }
+    @Test
+    @Transactional
+    @DisplayName("방나가기")
+    @Disabled("API deprecated")
+    public void leaveRoom() throws Exception {
+        //Given
+        EnterRoomResponse roomInfoFromOwner = createRoom();
+        String roomId = roomInfoFromOwner.getRoom().getRoomId();
+        String accessTokenFromOwner = roomInfoFromOwner.getToken().getAccessToken();
+
+        //When
+        EnterRoomResponse roomInfoFromGuest = enterRoom(roomId, "guest1");
+        EnterRoomResponse roomInfoFromGuest2 = enterRoom(roomId, "guest2");
+        EnterRoomResponse roomInfoFromGuest3 = enterRoom(roomId, "guest3");
+        EnterRoomResponse roomInfoFromGuest4 = enterRoom(roomId, "guest4");
+
+        //Then
+        assertThat(roomInfoFromGuest.getToken().getAccessToken()).isNotEqualTo(accessTokenFromOwner);
+        ObjectMapper om = new ObjectMapper();
+        RoomIdUserIdRequest request = new RoomIdUserIdRequest(roomId, roomInfoFromGuest.getUser().getUserId());
+        String result = mockMvc.perform(
+                        post("/room/leave")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(om.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        System.out.println("result =" + result);
+    }
 }
