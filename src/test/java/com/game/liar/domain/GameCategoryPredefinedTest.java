@@ -1,6 +1,6 @@
 package com.game.liar.domain;
 
-import com.game.liar.config.GameCategoryProperties;
+import com.game.liar.game.config.GameCategoryProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;

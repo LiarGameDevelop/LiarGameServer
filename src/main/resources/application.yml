@@ -1,22 +1,30 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-#    url: ENC(k+YNQnfgXLUX1PDk9YMdGz7C9F3JjxpWffepOzubWOE5Su8V7NHJcB5/3KcAxcUOBkGFEQZ28NWO5NQGq8yMUVx+Pjq8WIJFU2YGDrkV028X4G7nOnAoi7nLzDyFE8ABwrD+ZJb0fTN/qNRJ25ZVsw==)
-#    username: ENC(8XqLpLAUgoDfIOwT1C83NA==)
-#    password: ENC(skmX3ubPYfiGoL9F+C9m+fdjDXcZ4rOt)
-    url: jdbc:mysql://liargame-develop-rds.cybbdecoc9b0.ap-northeast-2.rds.amazonaws.com/liargame
-    username: admin
-    password: liargamedevelop
+    url: ENC(k+YNQnfgXLUX1PDk9YMdGz7C9F3JjxpWffepOzubWOE5Su8V7NHJcB5/3KcAxcUOBkGFEQZ28NWO5NQGq8yMUVx+Pjq8WIJFU2YGDrkV028X4G7nOnAoi7nLzDyFE8ABwrD+ZJb0fTN/qNRJ25ZVsw==)
+    username: ENC(8XqLpLAUgoDfIOwT1C83NA==)
+    password: ENC(skmX3ubPYfiGoL9F+C9m+fdjDXcZ4rOt)
+#    url: jdbc:mysql://liargame-develop-rds.cybbdecoc9b0.ap-northeast-2.rds.amazonaws.com/liargame
+#    username: admin
+#    password: liargamedevelop
+#    url: jdbc:mysql://localhost:3306/liargame
+#    username: root
+#    password: liargamedevelop
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
   jpa:
-    show-sql: true
+    show-sql: false
     hibernate:
-      ddl-auto: update
+      ddl-auto: create
     properties:
       hibernate:
         format_sql: true
+#logging:
+#  level:
+#    org:
+#      springframework:
+#        web: DEBUG
 
 jasypt:
   encryptor:
@@ -26,6 +34,11 @@ chat:
   destinations:
     login: "/subscribe/room.login/"
     logout: "/subscribe/room.logout/"
+
+rabbitmq:
+  username: ENC(PGk5csF3O3aPSZCkMVic5Q==)
+  password: ENC(34qp2Zzfp7zTmZheMU+hoeAVdv+1pFmS)
+  host: 27.96.135.109
 
 category:
   keywords:
@@ -68,3 +81,6 @@ category:
       - "elementary school"
       - "hotel"
       - "club"
+
+jwt:
+  secret: Mjg1MGNjZTAtOWFlMC00YTdkLThmYWYtMDE0NDlmNDk0ZGZidGhpcy1pcy1saWFyLWdhbWUtand0LXRva2VuLWtleTljODBmZTU5LTY2ZjgtNDYzNC1hMjZmLTJlYjNmMzkxY2Q0MmQ3MDYzOWUxLTMyMjQtNDYwMS1hYTQwLTk5OWJiOWUwODI4NA==
