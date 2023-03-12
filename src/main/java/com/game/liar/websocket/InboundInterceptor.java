@@ -45,19 +45,12 @@ public class InboundInterceptor implements ChannelInterceptor {
             String roomId = getRoomIdFromUUID(subject);
             String userId = getUserIdFromUUID(subject);
 
-            //subscribe/room/{roomId}/chat
-            //subscribe/room.login/{roomId}
-            //subscribe/room.logout/{roomId}
-            //subscribe/errors
-            //subscribe/public/{roomId}
-
             String destination = accessor.getNativeHeader("destination").get(0);
             if (destination.contains("public") || destination.contains("room")) {
                 if (!destination.contains(roomId)) {
                     throw new NotAllowedActionException("You can listen only your room");
                 }
             }
-            //subscribe/private/{userId}
             else if (destination.contains("private")) {
                 if (!destination.contains(userId)) {
                     throw new NotAllowedActionException("You can listen only your id");
@@ -91,10 +84,8 @@ public class InboundInterceptor implements ChannelInterceptor {
                 ObjectMapper objectMapper = new ObjectMapper();
                 LoginInfo loginInfo = new LoginInfo(roomId, userId, true);
                 String msgJson = objectMapper.writeValueAsString(loginInfo);
-                StompHeaderAccessor loginAccessor = StompHeaderAccessor.create(StompCommand.MESSAGE);
+                StompHeaderAccessor loginAccessor = StompHeaderAccessor.create(StompCommand.SEND);
                 loginAccessor.setMessage(msgJson);
-
-                //loginAccessor.setNativeHeader(AUTHORIZATION_HEADER, accessor.getNativeHeader(AUTHORIZATION_HEADER).get(0));
                 loginAccessor.setSessionId(accessor.getSessionId());
                 loginAccessor.setSessionAttributes(accessor.getSessionAttributes());
                 loginAccessor.setDestination(String.format("/topic/room.%s.%s", login, roomId));

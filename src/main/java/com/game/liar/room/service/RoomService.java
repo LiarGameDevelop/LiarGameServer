@@ -179,13 +179,17 @@ public class RoomService {
                 throw new IllegalArgumentException("Session id should be required");
             }
             log.info("disconnected session id :{}", sessionId);
-            GameUser user = userRepository.findBySessionId(sessionId)
-                    .orElseThrow(() -> new NotExistException(String.format("There is no session id :%s", sessionId)));
+            Optional<GameUser> userOpt = userRepository.findBySessionId(sessionId);
+            if (!userOpt.isPresent()) {
+                log.debug("There is no session id {}", sessionId);
+                return;
+            }
 
+            GameUser user = userOpt.get();
             String roomId = user.getRoomId().getId();
             String userId = user.getUserId().getUserId();
             String username = user.getUsername();
-            UserDataDto userDto = new UserDataDto(username,userId);
+            UserDataDto userDto = new UserDataDto(username, userId);
 
             roomService.leaveRoomMember(new RoomIdUserIdRequest(roomId, userId));
             publisher.publishEvent(new UserRemovedEvent(this, roomId, userDto));
