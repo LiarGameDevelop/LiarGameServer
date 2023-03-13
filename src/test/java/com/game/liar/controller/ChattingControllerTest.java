@@ -4,14 +4,11 @@ import com.game.liar.Util;
 import com.game.liar.chat.domain.ChatMessageDto;
 import com.game.liar.chat.repository.ChatRepository;
 import com.game.liar.game.domain.Global;
-import com.game.liar.websocket.InboundInterceptor;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -22,14 +19,11 @@ import static com.game.liar.Util.createStompObj;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class ChattingControllerTest {
-    //public static MySQLContainer<?> mysqlContainer = new MySQLContainer<>("mysql:8.0");
 
     @LocalServerPort
     private Integer port;
@@ -37,12 +31,9 @@ class ChattingControllerTest {
     ChatRepository chatRepository;
     @Autowired
     private MockMvc mockMvc;
-    //@MockBean
-    //private InboundInterceptor inboundInterceptor;
 
     @BeforeEach
     void clear() {
-        //when(inboundInterceptor.preSend(any(), any())).thenAnswer(i -> i.getArguments()[0]);
         chatRepository.deleteAll();
     }
 

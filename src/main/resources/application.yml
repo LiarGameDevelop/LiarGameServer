@@ -1,15 +1,12 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-#    url: ENC(k+YNQnfgXLUX1PDk9YMdGz7C9F3JjxpWffepOzubWOE5Su8V7NHJcB5/3KcAxcUOBkGFEQZ28NWO5NQGq8yMUVx+Pjq8WIJFU2YGDrkV028X4G7nOnAoi7nLzDyFE8ABwrD+ZJb0fTN/qNRJ25ZVsw==)
-#    username: ENC(8XqLpLAUgoDfIOwT1C83NA==)
-#    password: ENC(skmX3ubPYfiGoL9F+C9m+fdjDXcZ4rOt)
-#    url: jdbc:mysql://liargame-develop-rds.cybbdecoc9b0.ap-northeast-2.rds.amazonaws.com/liargame
-#    username: admin
+    url: ENC(k+YNQnfgXLUX1PDk9YMdGz7C9F3JjxpWffepOzubWOE5Su8V7NHJcB5/3KcAxcUOBkGFEQZ28NWO5NQGq8yMUVx+Pjq8WIJFU2YGDrkV028X4G7nOnAoi7nLzDyFE8ABwrD+ZJb0fTN/qNRJ25ZVsw==)
+    username: ENC(8XqLpLAUgoDfIOwT1C83NA==)
+    password: ENC(skmX3ubPYfiGoL9F+C9m+fdjDXcZ4rOt)
+#    url: jdbc:mysql://localhost:3306/liargame
+#    username: root
 #    password: liargamedevelop
-    url: jdbc:mysql://localhost:3306/liargame
-    username: root
-    password: liargamedevelop
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
@@ -30,15 +27,10 @@ jasypt:
   encryptor:
     bean: jasyptStringEncryptor
 
-chat:
-  destinations:
-    login: "/subscribe/room.login/"
-    logout: "/subscribe/room.logout/"
-
 rabbitmq:
   username: ENC(PGk5csF3O3aPSZCkMVic5Q==)
   password: ENC(34qp2Zzfp7zTmZheMU+hoeAVdv+1pFmS)
-  host: 27.96.135.109
+  host: ENC(Ul814bw3RoDPTywtNJLpx3hm6EplmznQ)
 
 category:
   keywords:

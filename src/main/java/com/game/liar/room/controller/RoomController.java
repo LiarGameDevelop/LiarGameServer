@@ -1,12 +1,9 @@
 package com.game.liar.room.controller;
 
-import com.game.liar.exception.MaxCountException;
 import com.game.liar.game.controller.GameController;
-import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.dto.*;
 import com.game.liar.room.service.RoomService;
 import io.swagger.annotations.ApiImplicitParam;
-import io.swagger.annotations.ApiImplicitParams;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +24,7 @@ public class RoomController {
 
     @PostMapping("/room/create")
     @ApiOperation(value = "방 생성", notes = "방을 생성한다")
-    public EnterRoomResponse create(@Valid @RequestBody RoomInfoRequest request, HttpServletRequest httpRequest) throws MaxCountException {
+    public EnterRoomResponse create(@Valid @RequestBody RoomInfoRequest request, HttpServletRequest httpRequest) {
         log.info("[create] request :" + request + ", ip :" + getClientIp(httpRequest));
         EnterRoomResponse response = roomService.create(request);
         //TODO: introduce event handler
@@ -48,7 +45,7 @@ public class RoomController {
 
     @PostMapping("/room/enter")
     @ApiOperation(value = "방 참여", notes = "방에 참여한다")
-    public EnterRoomResponse enterRoom(@Valid @RequestBody RoomIdUserNameRequest request, HttpServletRequest httpRequest) throws MaxCountException {
+    public EnterRoomResponse enterRoom(@Valid @RequestBody RoomIdUserNameRequest request, HttpServletRequest httpRequest) {
         log.info("[enterRoom] request :" + request + ", ip :" + getClientIp(httpRequest));
         return roomService.addRoomMember(request);
     }

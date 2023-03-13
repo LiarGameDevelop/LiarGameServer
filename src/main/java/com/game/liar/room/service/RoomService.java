@@ -43,7 +43,7 @@ public class RoomService {
     private final JwtService jwtService;
 
     @Transactional
-    public EnterRoomResponse create(RoomInfoRequest request) throws MaxCountException, NotExistException {
+    public EnterRoomResponse create(RoomInfoRequest request) {
         if (request.getMaxPersonCount() == null) {
             log.info("the number of room max count does not exist");
             request.setMaxPersonCount(MAX_COUNT_NUMBER);
@@ -108,14 +108,14 @@ public class RoomService {
     }
 
     @Transactional
-    public EnterRoomResponse addRoomMember(RoomIdUserNameRequest request) throws MaxCountException {
+    public EnterRoomResponse addRoomMember(RoomIdUserNameRequest request) {
         RoomId roomId = RoomId.of(request.getRoomId());
         String username = request.getUsername();
         String password = request.getPassword();
 
         Room room = roomRepository.findById(roomId).orElseThrow(() -> {
             log.error("request room id : {}", roomId.getId());
-            throw new NotExistException("No room");
+            return new NotExistException("No room");
         });
         if (userRepository.findByRoomId(roomId).size() + 1 > room.getSettings().getMaxCount()) {
             throw new MaxCountException("No left seat in the room");

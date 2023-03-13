@@ -67,6 +67,7 @@ public class GameController {
         try {
             request = objectMapper.readValue(requestStr, MessageContainer.class);
         } catch (JsonProcessingException e) {
+            //TODO: Find how to send message to user directly
             log.error("Json Parsing error : ex from [request:{}]", requestStr);
 //            return MessageContainer.messageContainerBuilder()
 //                    .senderId("SERVER")
@@ -74,13 +75,6 @@ public class GameController {
 //                    .build();
             return;
         }
-//        return MessageContainer.messageContainerBuilder()
-//                .uuid(request.getUuid())
-//                .senderId("SERVER")
-//                .message(new MessageContainer.Message(
-//                        apiRequestMapper.get(request.getMessage().getMethod()) != null ? apiRequestMapper.get(request.getMessage().getMethod()) : "METHOD_ERROR"
-//                        , new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage())))))
-//                .build();
         sendErrorMessage(request.getUuid(), new MessageContainer.Message(
                 apiRequestMapper.get(request.getMessage().getMethod()) != null ? apiRequestMapper.get(request.getMessage().getMethod()) : "METHOD_ERROR"
                 , new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage())))), request.getSenderId());
@@ -130,7 +124,7 @@ public class GameController {
 
         //TODO: user login/logout 한곳에서 관리
         LogoutInfo logoutInfo = new LogoutInfo(roomId, user.getUserId(), false);
-        messagingTemplate.convertAndSend(String.format("/subscribe/room.logout/%s", roomId), objectMapper.writeValueAsString(logoutInfo));
+        messagingTemplate.convertAndSend("amq.topic", String.format("room.%s.logout", roomId), logoutInfo);
     }
 
     @AllArgsConstructor
