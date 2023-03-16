@@ -20,6 +20,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: copy secrets
+      run: echo apply SECRETS
+      env:
+        rabbitmq.username: ${{secrets.RABBITMQ_USERNAME}}
+        rabbitmq.password: ${{secrets.RABBITMQ_PASSWORD}}
+        rabbitmq.host: ${{secrets.RABBITMQ_HOST}}
+
     - uses: actions/checkout@v2
     - name: Set up JDK 1.8
       uses: actions/setup-java@v1
@@ -29,17 +36,27 @@ jobs:
     - name: Setup MySQL
       uses: mirromutth/mysql-action@v1.1
       with:
-        host port: 3306
+        host port: 3800
         character set server: 'utf8mb4'
         collation server: 'utf8mb4_general_ci'
         mysql version: '8.0'
         mysql database: 'liargame'
         mysql root password: 'root'
-        mysql user: 'admin'
-        mysql password: 'liargamedevelop'
-        
+        mysql user: 'root'
+        mysql password: 'root'
+    
+    # - name: Setup RabbitMQ
+    #   uses: mer-team/rabbitmq-mng-action@v1.2
+    #   with:
+    #     RABBITMQ_USER: root
+    #     RABBITMQ_PASS: root
+    #     RABBITMQ_PORT: 5672
+    #     RABBITMQ_MNG_PORT: 15672
+    #     RABBITMQ_TAG: '3-management-alpine'
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     
     - name: Build with Gradle
-      run: ./gradlew clean build
+      run: ./gradlew clean build --debug
+      
