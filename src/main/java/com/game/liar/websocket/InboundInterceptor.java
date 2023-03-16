@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -35,6 +36,8 @@ public class InboundInterceptor implements ChannelInterceptor {
     private final TokenProvider tokenProvider;
     private final ApplicationEventPublisher publisher;
 
+    private final RabbitTemplate rabbitTemplate;
+
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor = StompHeaderAccessor.wrap(message);
@@ -45,20 +48,12 @@ public class InboundInterceptor implements ChannelInterceptor {
             String roomId = getRoomIdFromUUID(subject);
             String userId = getUserIdFromUUID(subject);
 
-            //subscribe/room/{roomId}/chat
-            //subscribe/room.login/{roomId}
-            //subscribe/room.logout/{roomId}
-            //subscribe/errors
-            //subscribe/public/{roomId}
-
             String destination = accessor.getNativeHeader("destination").get(0);
             if (destination.contains("public") || destination.contains("room")) {
                 if (!destination.contains(roomId)) {
                     throw new NotAllowedActionException("You can listen only your room");
                 }
-            }
-            //subscribe/private/{userId}
-            else if (destination.contains("private")) {
+            } else if (destination.contains("private")) {
                 if (!destination.contains(userId)) {
                     throw new NotAllowedActionException("You can listen only your id");
                 }
@@ -91,14 +86,13 @@ public class InboundInterceptor implements ChannelInterceptor {
                 ObjectMapper objectMapper = new ObjectMapper();
                 LoginInfo loginInfo = new LoginInfo(roomId, userId, true);
                 String msgJson = objectMapper.writeValueAsString(loginInfo);
-                StompHeaderAccessor loginAccessor = StompHeaderAccessor.create(StompCommand.MESSAGE);
-                loginAccessor.setMessage(msgJson);
-
-                //loginAccessor.setNativeHeader(AUTHORIZATION_HEADER, accessor.getNativeHeader(AUTHORIZATION_HEADER).get(0));
-                loginAccessor.setSessionId(accessor.getSessionId());
-                loginAccessor.setSessionAttributes(accessor.getSessionAttributes());
-                loginAccessor.setDestination(String.format("/topic/room.%s.%s", login, roomId));
-                channel.send(MessageBuilder.createMessage(msgJson.getBytes(StandardCharsets.UTF_8), loginAccessor.getMessageHeaders()));
+//                StompHeaderAccessor loginAccessor = StompHeaderAccessor.create(StompCommand.SEND);
+//                loginAccessor.setMessage(msgJson);
+//                loginAccessor.setSessionId(accessor.getSessionId());
+//                loginAccessor.setSessionAttributes(accessor.getSessionAttributes());
+//                loginAccessor.setDestination(String.format("/topic/room.%s.%s", roomId, login));
+                //channel.send(MessageBuilder.createMessage(msgJson.getBytes(StandardCharsets.UTF_8), loginAccessor.getMessageHeaders()));
+                rabbitTemplate.convertAndSend("amq.topic", String.format("room.%s.%s", roomId, login), loginInfo);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }

@@ -6,6 +6,7 @@ import com.game.liar.exception.ErrorResult;
 import com.game.liar.exception.JsonDeserializeException;
 import com.game.liar.exception.LiarGameException;
 import com.game.liar.exception.NotAllowedActionException;
+import com.game.liar.game.config.TimerInfoThreadPoolTaskScheduler;
 import com.game.liar.game.domain.GameInfo;
 import com.game.liar.game.domain.Global;
 import com.game.liar.game.dto.MessageContainer;
@@ -27,7 +28,6 @@ import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RestController;
@@ -46,12 +46,12 @@ public class GameController {
     private final RabbitTemplate messagingTemplate;
     private GameService gameService;
 
-    private final TaskScheduler taskScheduler;
+    private final TimerInfoThreadPoolTaskScheduler taskScheduler;
     @Setter
     private long timeout = 20000;
 
     //public GameController(SimpMessagingTemplate messagingTemplate, GameService gameService, TaskScheduler taskScheduler) {
-    public GameController(RabbitTemplate messagingTemplate, GameService gameService, TaskScheduler taskScheduler) {
+    public GameController(RabbitTemplate messagingTemplate, GameService gameService, TimerInfoThreadPoolTaskScheduler taskScheduler) {
         this.messagingTemplate = messagingTemplate;
         this.gameService = gameService;
         this.taskScheduler = taskScheduler;
@@ -67,6 +67,7 @@ public class GameController {
         try {
             request = objectMapper.readValue(requestStr, MessageContainer.class);
         } catch (JsonProcessingException e) {
+            //TODO: Find how to send message to user directly
             log.error("Json Parsing error : ex from [request:{}]", requestStr);
 //            return MessageContainer.messageContainerBuilder()
 //                    .senderId("SERVER")
@@ -74,13 +75,6 @@ public class GameController {
 //                    .build();
             return;
         }
-//        return MessageContainer.messageContainerBuilder()
-//                .uuid(request.getUuid())
-//                .senderId("SERVER")
-//                .message(new MessageContainer.Message(
-//                        apiRequestMapper.get(request.getMessage().getMethod()) != null ? apiRequestMapper.get(request.getMessage().getMethod()) : "METHOD_ERROR"
-//                        , new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage())))))
-//                .build();
         sendErrorMessage(request.getUuid(), new MessageContainer.Message(
                 apiRequestMapper.get(request.getMessage().getMethod()) != null ? apiRequestMapper.get(request.getMessage().getMethod()) : "METHOD_ERROR"
                 , new ErrorResponse(objectMapper.writeValueAsString(new ErrorResult(ex.getCode(), ex.getMessage())))), request.getSenderId());
@@ -130,7 +124,7 @@ public class GameController {
 
         //TODO: user login/logout 한곳에서 관리
         LogoutInfo logoutInfo = new LogoutInfo(roomId, user.getUserId(), false);
-        messagingTemplate.convertAndSend(String.format("/subscribe/room.logout/%s", roomId), objectMapper.writeValueAsString(logoutInfo));
+        messagingTemplate.convertAndSend("amq.topic", String.format("room.%s.logout", roomId), logoutInfo);
     }
 
     @AllArgsConstructor
@@ -210,6 +204,7 @@ public class GameController {
         GameInfo gameInfo = gameService.updateTurn(senderId, roomId);
         String clientId = gameService.getCurrentTurnUser(roomId);
         gameService.cancelTurnTimer(roomId);
+        taskScheduler.cancel(new TimerInfoThreadPoolTaskScheduler.TimerInfo(roomId));
 
         try {
             if (gameService.isLastTurn(roomId)) {
@@ -236,6 +231,7 @@ public class GameController {
         gameService.voteLiar(request, roomId);
         if (gameService.isVoteFinished(roomId)) {
             gameService.cancelVoteTimer(roomId);
+            taskScheduler.cancel(new TimerInfoThreadPoolTaskScheduler.TimerInfo(roomId));
             VoteResult voteResult = gameService.getMostVoted(roomId);
             log.info("[API]voteLiar response : {}", voteResult);
             String uuid = UUID.randomUUID().toString();
@@ -278,8 +274,9 @@ public class GameController {
     ProcessGame checkKeywordCorrect = this::__checkKeywordCorrect;
 
     private void __checkKeywordCorrect(MessageContainer request, String roomId) {
-        gameService.cancelAnswerTimer(roomId);
         LiarAnswerResponse body = gameService.checkKeywordCorrect(request, roomId);
+        gameService.cancelAnswerTimer(roomId);
+        taskScheduler.cancel(new TimerInfoThreadPoolTaskScheduler.TimerInfo(roomId));
         log.info("[API]checkKeywordCorrect response : {}", body);
         sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_CORRECT, body), roomId);
     }
@@ -308,7 +305,7 @@ public class GameController {
     private void __notifyLiarAnswerNeeded(String roomId) {
         GameInfo gameInfo = gameService.getGame(roomId);
         String liar = gameInfo.getLiarId();
-        log.info("[API]notifyLiarAnswerNeeded from [room:{}]", roomId);
+        log.info("[API]notifyLiarAnswerNeeded from [room:{}] to [liar:{}]", roomId, liar);
         sendPrivateMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_NEEDED, null), liar, roomId);
     }
 
@@ -362,14 +359,17 @@ public class GameController {
             @Override
             public void run() {
                 GameInfo gameInfo = gameService.getGame(roomId);
-                log.info("[API]timer run notifyTurnTimeout from [room:{}]", roomId);
-                if (!gameInfo.isTurnTimerRunning()) return;
+                log.info("[API]timer run notifyTurnTimeout from [room:{}][timer:{}]", roomId, this);
+                if (!gameInfo.isTurnTimerRunning()) {
+                    this.cancel();
+                    return;
+                }
                 log.info("[API]notifyTurnTimeout from [room:{}]", roomId);
                 sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_TURN_TIMEOUT, null), roomId);
                 //타임아웃났다고 알리고, 다음 턴의 사람으로 바꿔야함. 다음턴의 사람이 보냈다고 해야함.
                 __requestTurnFinished(new MessageContainer(gameInfo.getCurrentTurnId(), null, UUID.randomUUID().toString()), roomId);
             }
-        }, Instant.now().plusMillis(timeout));
+        }, Instant.now().plusMillis(timeout), new TimerInfoThreadPoolTaskScheduler.TimerInfo(roomId));
         gameService.startTurnTimer(roomId);
     }
 
@@ -392,7 +392,7 @@ public class GameController {
                             UUID.randomUUID().toString()), roomId);
                 }
             }
-        }, Instant.now().plusMillis(timeout));
+        }, Instant.now().plusMillis(timeout), new TimerInfoThreadPoolTaskScheduler.TimerInfo(roomId));
         gameService.startVoteTimer(roomId);
     }
 
@@ -412,7 +412,7 @@ public class GameController {
                                 UUID.randomUUID().toString()),
                         roomId);
             }
-        }, Instant.now().plusMillis(timeout));
+        }, Instant.now().plusMillis(timeout), new TimerInfoThreadPoolTaskScheduler.TimerInfo(roomId));
         gameService.startAnswerTimer(roomId);
     }
 
@@ -425,7 +425,6 @@ public class GameController {
                 .message(message)
                 .build();
         log.info("Send private message. message: {}, [receiver:{}]", response, receiver);
-        //messagingTemplate.convertAndSend(String.format("/subscribe/private/%s", receiver), response);
         messagingTemplate.convertAndSend("message.direct", String.format("room.%s.user.%s", roomId, receiver), response); //queue에 직접
     }
 
@@ -436,7 +435,6 @@ public class GameController {
                 .message(message)
                 .build();
         log.info("Send public message. message: {}, [room:{}]", response, roomId);
-        //messagingTemplate.convertAndSend(String.format("/subscribe/public/%s", roomId), response);
         messagingTemplate.convertAndSend("amq.topic", String.format("room.%s.user.*", roomId), response);
     }
 

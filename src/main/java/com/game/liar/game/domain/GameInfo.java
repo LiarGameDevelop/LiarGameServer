@@ -117,6 +117,7 @@ public class GameInfo {
 
     public void resetTurn() {
         currentTurn = -1;
+        log.info("current turn is {}, room id : {}", currentTurn, roomId);
     }
 
     public void selectLiar(String liar) {
