@@ -42,7 +42,6 @@ import static com.game.liar.game.domain.Global.*;
 public class GameController {
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    //private final SimpMessagingTemplate messagingTemplate;
     private final RabbitTemplate messagingTemplate;
     private GameService gameService;
 

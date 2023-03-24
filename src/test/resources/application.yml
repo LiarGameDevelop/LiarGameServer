@@ -1,9 +1,12 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/liargame
-    username: admin
-    password: liargamedevelop
+    url: jdbc:mysql://localhost:3800/liargame
+    username: root
+    password: root
+#    url: jdbc:mysql://localhost:3306/liargametest
+#    username: root
+#    password: liargamedevelop
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
@@ -14,6 +17,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+    generate-ddl: true
 
 jasypt:
   encryptor:
@@ -39,3 +43,7 @@ category:
 jwt:
   secret: Mjg1MGNjZTAtOWFlMC00YTdkLThmYWYtMDE0NDlmNDk0ZGZidGhpcy1pcy1saWFyLWdhbWUtand0LXRva2VuLWtleTljODBmZTU5LTY2ZjgtNDYzNC1hMjZmLTJlYjNmMzkxY2Q0MmQ3MDYzOWUxLTMyMjQtNDYwMS1hYTQwLTk5OWJiOWUwODI4NA==
 
+rabbitmq:
+  username: RABBITUSER
+  password: RABBITPASS
+  host: RABBITHOST

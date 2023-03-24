@@ -6,10 +6,7 @@ import com.game.liar.game.config.GameCategoryProperties;
 import com.game.liar.game.domain.GameSubject;
 import com.game.liar.game.dto.GameSubjectDto;
 import com.game.liar.game.repository.GameSubjectRepository;
-import lombok.AllArgsConstructor;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -23,7 +20,6 @@ import java.util.stream.Collectors;
 public class GameSubjectService {
     private final GameCategoryProperties predefined;
     private final GameSubjectRepository gameSubjectRepository;
-    private boolean predefinedSubjectLoaded = false;
 
     public GameSubjectService(GameCategoryProperties predefined, GameSubjectRepository gameSubjectRepository) {
         this.predefined = predefined;
@@ -31,7 +27,7 @@ public class GameSubjectService {
     }
 
     public Map<String, List<String>> loadInitialCategory() {
-        if (predefinedSubjectLoaded) return null;
+        if (!hasNoCategory()) return null;
 
         for (Map.Entry<String, List<String>> subject : predefined.getKeywords().entrySet()) {
             String category = subject.getKey();
@@ -40,7 +36,6 @@ public class GameSubjectService {
                 gameSubjectRepository.save(newSubject);
             }
         }
-        predefinedSubjectLoaded = true;
         return getAllSubject();
     }
 
@@ -86,10 +81,14 @@ public class GameSubjectService {
     }
 
     public List<String> getAllCategory() throws NotExistException {
-        if (!predefinedSubjectLoaded)
+        if (hasNoCategory())
             loadInitialCategory();
 
         log.info("all categories :{}", gameSubjectRepository.findAll());
         return gameSubjectRepository.findAll().stream().sorted().map(GameSubject::getCategory).distinct().collect(Collectors.toList());
+    }
+
+    private boolean hasNoCategory() {
+        return gameSubjectRepository.isTableEmpty();
     }
 }

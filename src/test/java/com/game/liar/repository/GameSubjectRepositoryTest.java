@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -44,6 +43,33 @@ public class GameSubjectRepositoryTest {
         //Then
         assertThat(gameSubjectRepository.findAll().size()).isEqualTo(1);
         assertThat(gameSubjectRepository.findByCategoryAndKeyword("category1","keyword1").isPresent()).isTrue();
+    }
+
+    @Test
+    @DisplayName("카테고리가 비어있는지 확인한다")
+    public void checkGameSubjectIsEmpty () throws Exception{
+        //Given
+        GameSubject subject = new GameSubject("category1","keyword1");
+
+        //When
+        Boolean result = gameSubjectRepository.isTableEmpty();
+
+        //Then
+        assertThat(result).isEqualTo(true);
+    }
+
+    @Test
+    @DisplayName("카테고리가 비어있어 있지 않은지 확인한다")
+    public void checkGameSubjectIsNotEmpty () throws Exception{
+        //Given
+        GameSubject subject = new GameSubject("category1","keyword1");
+
+        //When
+        gameSubjectRepository.save(subject);
+        Boolean result = gameSubjectRepository.isTableEmpty();
+
+        //Then
+        assertThat(result).isEqualTo(false);
     }
 
 }

@@ -12,7 +12,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 
 import java.util.*;
 
@@ -35,16 +34,16 @@ public class GameSubjectServiceTest {
     public void loadGameSubject() throws Exception {
         //Given
         when(gameSubjectRepository.save(any())).thenReturn(null);
-        Map<String,List<String>> keywords = new HashMap<String,List<String>>(){
+        Map<String, List<String>> subjects = new HashMap<String, List<String>>() {
             {
                 put("category1", Arrays.asList("keyword1", "keyword2"));
-                put("category2", Arrays.asList("keyword3", "keyword4","keyword5"));
-                put("category3", Arrays.asList("keyword3", "keyword4","keyword2"));
-                put("category4", Arrays.asList("keyword6", "keyword7","keyword8"));
-                put("category5", Arrays.asList("keyword9", "keyword10","keyword11"));
+                put("category2", Arrays.asList("keyword3", "keyword4", "keyword5"));
+                put("category3", Arrays.asList("keyword3", "keyword4", "keyword2"));
+                put("category4", Arrays.asList("keyword6", "keyword7", "keyword8"));
+                put("category5", Arrays.asList("keyword9", "keyword10", "keyword11"));
             }
         };
-        List<GameSubject> gameSubjects = new ArrayList<GameSubject>(){
+        List<GameSubject> gameSubjects = new ArrayList<GameSubject>() {
             {
                 add(new GameSubject("category1", "keyword1"));
                 add(new GameSubject("category1", "keyword2"));
@@ -63,19 +62,20 @@ public class GameSubjectServiceTest {
             }
         };
         when(gameSubjectRepository.findAll()).thenReturn(gameSubjects);
-        when(predefined.getKeywords()).thenReturn(keywords);
+        when(predefined.getKeywords()).thenReturn(subjects);
+        when(gameSubjectRepository.isTableEmpty()).thenReturn(true);
 
         //When
-        Map<String, List<String>> result = subjectService.loadInitialCategory();
+        Map<String, List<String>> loadedInitialCategory = subjectService.loadInitialCategory();
 
         //Then
-        assertThat(result.size()).isEqualTo(predefined.getKeywords().size());
-        assertThat(new ArrayList<>(result.keySet())).isEqualTo(new ArrayList<>(predefined.getKeywords().keySet()));
-        assertThat(result.values().stream().map(List::size).reduce(0,Integer::sum))
-                .isEqualTo(predefined.getKeywords().values().stream().map(List::size).reduce(0,Integer::sum));
+        assertThat(loadedInitialCategory.size()).isEqualTo(predefined.getKeywords().size());
+        assertThat(new ArrayList<>(loadedInitialCategory.keySet())).isEqualTo(new ArrayList<>(predefined.getKeywords().keySet()));
+        assertThat(loadedInitialCategory.values().stream().map(List::size).reduce(0, Integer::sum))
+                .isEqualTo(predefined.getKeywords().values().stream().map(List::size).reduce(0, Integer::sum));
 
         verify(gameSubjectRepository, times(gameSubjects.size())).save(any());
-        verify(gameSubjectRepository, times(predefined.getKeywords().values().stream().map(List::size).reduce(0,Integer::sum))).save(any());
+        verify(gameSubjectRepository, times(predefined.getKeywords().values().stream().map(List::size).reduce(0, Integer::sum))).save(any());
         verify(gameSubjectRepository, times(1)).findAll();
     }
 
@@ -101,10 +101,10 @@ public class GameSubjectServiceTest {
         //When
         subjectService.addSubject(gameSubjectDto);
         GameSubject fakeList = new GameSubject("category", "keyword");
-        when(gameSubjectRepository.findByCategoryAndKeyword(any(),any())).thenReturn(Optional.of(fakeList));
+        when(gameSubjectRepository.findByCategoryAndKeyword(any(), any())).thenReturn(Optional.of(fakeList));
 
         //Then
-        assertThrows(AlreadyExistException.class,()->subjectService.addSubject(gameSubjectDto2));
+        assertThrows(AlreadyExistException.class, () -> subjectService.addSubject(gameSubjectDto2));
         verify(gameSubjectRepository, times(1)).save(any());
     }
 
