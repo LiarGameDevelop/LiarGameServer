@@ -74,6 +74,7 @@ public class Util {
         EnterRoomResponse roomInfo = createRoom(mockMvc);
 
         WebSocketStompClient stompClient = new WebSocketStompClient(new SockJsClient(createTransportClient()));
+        //WebSocketStompClient stompClient = new WebSocketStompClient(new StandardWebSocketClient());
         stompClient.setMessageConverter(new MappingJackson2MessageConverter());
 
         WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
