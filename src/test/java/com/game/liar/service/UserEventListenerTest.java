@@ -1,9 +1,13 @@
 package com.game.liar.service;
 
+import com.game.liar.game.domain.RoomSettings;
 import com.game.liar.room.domain.Authority;
 import com.game.liar.room.domain.GameUser;
 import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.domain.UserId;
+import com.game.liar.room.dto.RoomDto;
+import com.game.liar.room.dto.RoomInfoResponse;
+import com.game.liar.room.dto.UserDataDto;
 import com.game.liar.room.event.UserAddedEvent;
 import com.game.liar.room.event.UserRemovedEvent;
 import com.game.liar.room.service.RoomService;
@@ -19,6 +23,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -60,6 +66,9 @@ public class UserEventListenerTest {
         when(userRepository.findBySessionId(any()))
                 .thenReturn(Optional.of(new GameUser(UserId.of("userId"), RoomId.of("roomId"), "username", "password", Authority.ROLE_USER)));
         doNothing().when(publisher).publishEvent(isA(UserRemovedEvent.class));
+        RoomInfoResponse roomInfoResponse=new RoomInfoResponse(new RoomDto("roomId","userId",new RoomSettings(3)), Arrays.asList(
+                new UserDataDto("username","userId")));
+        when(roomService.getRoom(any())).thenReturn(roomInfoResponse);
 
         //When
         listener.disconnected(new WebsocketDisconnectedEvent(inboundInterceptor, "sessionId"));

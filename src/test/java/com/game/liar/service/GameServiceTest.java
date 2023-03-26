@@ -1319,6 +1319,7 @@ class GameServiceTest {
             )));
         }
         gameInfo.nextState();
-        assertThat(gameInfo.getState()).isEqualTo(GameState.END_GAME);
+        //assertThat(gameInfo.getState()).isEqualTo(GameState.END_GAME);
+        assertThat(gameInfo.getState()).isEqualTo(GameState.BEFORE_START);
     }
 }

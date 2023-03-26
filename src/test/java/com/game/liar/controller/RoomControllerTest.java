@@ -1,6 +1,7 @@
 package com.game.liar.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.game.liar.game.service.GameService;
 import com.game.liar.room.dto.*;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -21,17 +22,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class RoomControllerTest {
-//    @Mock
-//    private GameController gameController;
-//
-//    @InjectMocks
-//    private RoomController roomController;
-//
-//    @Mock
-//    private RoomService roomService;
-
     @Autowired
     private MockMvc mockMvc;
+    @Autowired
+    private GameService gameService;
 
     @Test
     @Transactional
@@ -166,6 +160,35 @@ public class RoomControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(om.writeValueAsString(request)))
                 .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        System.out.println("result =" + result);
+    }
+
+    @Test
+    @Transactional
+    @DisplayName("이미 시작된 게임 입장")
+    public void enterAlreadyStartedRoom() throws Exception {
+        //Given
+        EnterRoomResponse roomInfoFromOwner = createRoom();
+        String roomId = roomInfoFromOwner.getRoom().getRoomId();
+        String accessTokenFromOwner = roomInfoFromOwner.getToken().getAccessToken();
+
+        //When
+        EnterRoomResponse roomInfoFromGuest = enterRoom(roomId, "guest1");
+        EnterRoomResponse roomInfoFromGuest2 = enterRoom(roomId, "guest2");
+        EnterRoomResponse roomInfoFromGuest3 = enterRoom(roomId, "guest3");
+
+        gameService.getGame(roomId).nextState();
+
+        //Then
+        assertThat(roomInfoFromGuest.getToken().getAccessToken()).isNotEqualTo(accessTokenFromOwner);
+        ObjectMapper om = new ObjectMapper();
+        RoomIdUserNameRequest request = new RoomIdUserNameRequest(roomId, "guest4AlreadyStarted", "password");
+        String result = mockMvc.perform(
+                        post("/room/enter")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(om.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
                 .andReturn().getResponse().getContentAsString();
         System.out.println("result =" + result);
     }

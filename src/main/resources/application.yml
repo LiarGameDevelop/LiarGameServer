@@ -34,45 +34,45 @@ rabbitmq:
 
 category:
   keywords:
-    food:
-      - "pizza"
-      - "tteokbokki"
-      - "bibimbab"
-      - "chicken"
-      - "jokbal"
-      - "sundae"
-    sports:
-      - "soccer"
-      - "basketball"
-      - "baseball"
-      - "volleyball"
-      - "golf"
-      - "curling"
-    animal:
-      - "dog"
-      - "cow"
-      - "rabbit"
-      - "goat"
-      - "leopard"
-      - "cheetah"
-      - "jaguar"
-      - "pig"
-      - "whale"
-    celebrity:
-      - "suji"
-      - "IU"
-      - "jenny"
-      - "jungkook"
+    음식:
+      - "피자"
+      - "떡볶이"
+      - "비빔밥"
+      - "치킨"
+      - "족발"
+      - "순대"
+    스포츠:
+      - "축구"
+      - "농구"
+      - "야구"
+      - "발리볼"
+      - "골프"
+      - "컬링"
+    동물:
+      - "개"
+      - "소"
+      - "토끼"
+      - "염소"
+      - "표범"
+      - "치타"
+      - "재규어"
+      - "돼지"
+      - "고래"
+    연예인:
+      - "수지"
+      - "아이유"
+      - "제니"
+      - "정국"
       - "RM"
-      - "jisoo"
-      - "G-Dragon"
-    place:
-      - "baseball field"
-      - "ski resort"
-      - "caffe"
-      - "elementary school"
-      - "hotel"
-      - "club"
+      - "지수"
+      - "지드래곤"
+    장소:
+      - "야구장"
+      - "스키장"
+      - "카페"
+      - "초등학교"
+      - "호텔"
+      - "클럽"
 
 jwt:
   secret: Mjg1MGNjZTAtOWFlMC00YTdkLThmYWYtMDE0NDlmNDk0ZGZidGhpcy1pcy1saWFyLWdhbWUtand0LXRva2VuLWtleTljODBmZTU5LTY2ZjgtNDYzNC1hMjZmLTJlYjNmMzkxY2Q0MmQ3MDYzOWUxLTMyMjQtNDYwMS1hYTQwLTk5OWJiOWUwODI4NA==

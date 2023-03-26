@@ -70,16 +70,16 @@ stateDiagram
 ```
 
 ### 3. Sequence Diagram
-This is game 
 ```mermaid
 sequenceDiagram
+    autonumber
     actor client as client
     participant room as Room server
     participant mq as Message queue
     participant stomp as STOMP server
 
     alt host
-    client->>+room: [HTTP]request to make a room
+    client->>+room: [HTTP]request to make a room(username,generated password)
     room->>-client: room info, user info, token
     else guest
     client->>+room: [HTTP]request to enter the room
@@ -106,5 +106,23 @@ sequenceDiagram
     deactivate client
     end
 
-    client->>mq:disconnect
+    client->>mq: disconnect
+    mq->>stomp: send discconect message
+    stomp->>room: delete room if client is room owner
 ```
+
+This is entire game flow.
+#### 1~4) Create/Enter a room and response from a server
+Users can create or join a room. When creating a room, the *username* is input from the user, and the *password* is a randomly generated string from the client and passed to the server. The game does not require game membership registration, so there is no field for user input password. The server creates **jwt** based on the input username and password and sends the room information and user information. jwt is used for websocket communication security. **Through jwt, users are given permission to access only the rooms they are allowed to**. A similar action is taken when entering a room. At this time, you need the room ID, username and password to enter.
+
+#### 5~6) Request to connect websocket
+With jwt and room infomation, client need to request to connect server. It makes client connect to each other by subscribing messages and sending message through STOMP broker.
+
+#### 7~11) Subscribe with authorization
+Through JWT, client can only receive messages from the room client belongs to(authorization)
+
+#### 12~14) Enjoy the liar game
+The game is composed of states. When a client makes a request to the server according to the state, it enters the server through the message queue and, depending on the situation, delivers the message to all clients (public message) or to the requesting client (private message).
+
+#### 15~16) Disconnect
+If the client disconnects from the websocket server for any reason, the stomp server emits a disconnect event and deletes all related information.

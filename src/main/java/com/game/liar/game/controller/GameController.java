@@ -134,14 +134,6 @@ public class GameController {
         boolean login;
     }
 
-    public void addRoom(String roomId, String ownerId) {
-        gameService.addGame(roomId, ownerId);
-    }
-
-    public void removeRoom(String roomId) {
-        gameService.removeGame(roomId);
-    }
-
     @FunctionalInterface
     public interface ProcessGame {
         void process(MessageContainer request, String roomId);
@@ -326,9 +318,8 @@ public class GameController {
     }
 
     private void __notifyGameEnd(String roomId) {
-        GameInfo gameInfo = gameService.getGame(roomId);
         log.info("[API]notifyGameEnd from [room:{}]", roomId);
-        gameService.nextGameState(roomId);
+        GameInfo gameInfo = gameService.nextGameState(roomId);
         GameStateResponse body = new GameStateResponse(gameInfo.getState());
         sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_GAME_END, body), roomId);
         gameService.resetGame(roomId);
