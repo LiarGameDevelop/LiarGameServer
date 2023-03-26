@@ -28,9 +28,7 @@ public class GameInfo {
     private GameState state;
 
     public GameState getState() {
-        synchronized (this) {
-            return state;
-        }
+        return state;
     }
 
     @Id

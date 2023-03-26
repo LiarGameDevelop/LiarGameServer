@@ -134,14 +134,6 @@ public class GameController {
         boolean login;
     }
 
-    public void addRoom(String roomId, String ownerId) {
-        gameService.addGame(roomId, ownerId);
-    }
-
-    public void removeRoom(String roomId) {
-        gameService.removeGame(roomId);
-    }
-
     @FunctionalInterface
     public interface ProcessGame {
         void process(MessageContainer request, String roomId);

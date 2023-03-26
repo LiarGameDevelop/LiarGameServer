@@ -104,11 +104,11 @@ public enum GameState {
     PUBLISH_RANKINGS() {
         @Override
         public GameState next() {
-            return END_GAME;
+            return BEFORE_START;
         }
         @Override
         public GameState loop() {
-            return END_GAME;
+            return BEFORE_START;
         }
     },
     END_GAME() {

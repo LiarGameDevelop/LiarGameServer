@@ -43,6 +43,10 @@ public class GameService {
         return gameInfo;
     }
 
+    public boolean isGameStarted(String roomId){
+        return !getGame(roomId).getState().equals(GameState.BEFORE_START);
+    }
+
     public GameInfo getGame(String roomId) {
         return gameInfoRepository.findById(roomId).orElseThrow(() -> new NotExistException(String.format("There is no game in the room [%s]",roomId)));
     }

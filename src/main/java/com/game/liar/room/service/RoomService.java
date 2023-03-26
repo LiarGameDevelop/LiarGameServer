@@ -101,10 +101,7 @@ public class RoomService {
     public void deleteRoom(RoomIdRequest request) {
         RoomId roomId = RoomId.of(request.getRoomId());
         Room room = roomRepository.findById(roomId).orElseThrow(() -> new NotExistException("Request Room name does not exist"));
-        if (room.getOwnerId().getUserId().equals(SecurityUtil.getCurrentUserId()))
-            roomRepository.delete(room);
-        else
-            throw new NotAllowedActionException("You are not owner of the room");
+        roomRepository.delete(room);
     }
 
     @Transactional
@@ -178,12 +175,13 @@ public class RoomService {
             if (sessionId == null) {
                 throw new IllegalArgumentException("Session id should be required");
             }
-            log.info("disconnected session id :{}", sessionId);
+
             Optional<GameUser> userOpt = userRepository.findBySessionId(sessionId);
             if (!userOpt.isPresent()) {
                 log.debug("There is no session id {}", sessionId);
                 return;
             }
+            log.info("disconnected session id :{}", sessionId);
 
             GameUser user = userOpt.get();
             String roomId = user.getRoomId().getId();
@@ -192,6 +190,9 @@ public class RoomService {
             UserDataDto userDto = new UserDataDto(username, userId);
 
             roomService.leaveRoomMember(new RoomIdUserIdRequest(roomId, userId));
+            if (userId.equals(roomService.getRoom(new RoomIdRequest(roomId)).getRoom().getOwnerId())) {
+                roomService.deleteRoom(new RoomIdRequest(roomId));
+            }
             publisher.publishEvent(new UserRemovedEvent(this, roomId, userDto));
         }
     }

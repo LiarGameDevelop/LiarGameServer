@@ -6,6 +6,7 @@ import com.game.liar.chat.repository.ChatRepository;
 import com.game.liar.game.domain.Global;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -40,7 +41,8 @@ class ChattingControllerTest {
     }
 
     @Test
-    public void 채팅채널에_메세지를보내면_메세지를받고_db에저장된다() throws Exception {
+    @DisplayName("채팅채널에_메세지를보내면_메세지를받고_db에저장된다")
+    public void verifyMessageFromChannelDBSave() throws Exception {
         //given
         Util.TestStompObject obj1 = createStompObj(mockMvc, port);
         Util.PrivateStompHandler<ChatMessageDto> handler = new Util.PrivateStompHandler<>(ChatMessageDto.class);
@@ -60,7 +62,8 @@ class ChattingControllerTest {
     }
 
     @Test
-    public void 채팅서비스_여러개_서로_간섭하지않아야한다() throws Exception {
+    @DisplayName("채팅채널 여러개가 서로 간섭하지 않아야한다")
+    public void verifyDoNotDisturbAnotherChattingChannel() throws Exception {
         Util.TestStompObject obj1 = createStompObj(mockMvc, port);
         Util.TestStompObject obj2 = createStompObj(mockMvc, port);
         //given

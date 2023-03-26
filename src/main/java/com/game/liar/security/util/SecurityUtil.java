@@ -15,7 +15,7 @@ public class SecurityUtil {
         final Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication == null || authentication.getName() == null) {
-            throw  new RuntimeException("Security Context 에 인증 정보가 없습니다.");
+            throw  new RuntimeException("There is no auth infomation in Security Context");
         }
 
         return JwtUtil.getUserIdFromUUID(authentication.getName());
