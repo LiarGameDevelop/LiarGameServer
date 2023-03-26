@@ -114,7 +114,7 @@ public enum GameState {
     END_GAME() {
         @Override
         public GameState next() {
-            return INITIAL;
+            return BEFORE_START;
         }
         @Override
         public GameState loop() {
