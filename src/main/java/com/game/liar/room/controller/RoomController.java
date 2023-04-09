@@ -2,6 +2,7 @@ package com.game.liar.room.controller;
 
 import com.game.liar.exception.StateNotAllowedExpcetion;
 import com.game.liar.game.service.GameService;
+import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.dto.*;
 import com.game.liar.room.service.RoomService;
 import io.swagger.annotations.ApiImplicitParam;
@@ -48,7 +49,7 @@ public class RoomController {
     @ApiOperation(value = "방 참여", notes = "방에 참여한다")
     public EnterRoomResponse enterRoom(@Valid @RequestBody RoomIdUserNameRequest request, HttpServletRequest httpRequest) {
         log.info("[enterRoom] request :" + request + ", ip :" + getClientIp(httpRequest));
-        if (gameService.isGameStarted(request.getRoomId()))
+        if (gameService.isGameStarted(RoomId.of(request.getRoomId())))
             throw new StateNotAllowedExpcetion("game already started");
         return roomService.addRoomMember(request);
     }

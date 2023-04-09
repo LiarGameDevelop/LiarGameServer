@@ -2,7 +2,9 @@ package com.game.liar.game.domain;
 
 
 import com.game.liar.exception.NotExistException;
+import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.dto.UserDataDto;
+import com.game.liar.user.domain.UserId;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,11 +33,12 @@ public class GameInfo {
         return state;
     }
 
-    @Id
     @Getter
-    private String roomId;
+    @EmbeddedId
+    private RoomId roomId;
     @Getter
-    private String ownerId;
+    @Embedded
+    private UserId ownerId;
 
     @Getter
     @Embedded
@@ -86,6 +89,14 @@ public class GameInfo {
     @MapKeyColumn(name = "user_id")
     @Getter
     private Map<String, Integer> scoreboard = new HashMap<>(); //밸류타입
+
+    public void setOwnerId(UserId ownerId) {
+        this.ownerId = ownerId;
+    }
+
+    public void setRoomId(RoomId roomId) {
+        this.roomId = roomId;
+    }
 
     public String getCurrentTurnId() {
         synchronized (this) {
@@ -245,7 +256,7 @@ public class GameInfo {
         return new ArrayList<>(gameSettings.getSelectedByRoomOwnerCategory().keySet());
     }
 
-    public GameInfo(String roomId, String ownerId) {
+    public GameInfo(RoomId roomId, UserId ownerId) {
         this.roomId = roomId;
         this.ownerId = ownerId;
         state = GameState.BEFORE_START;

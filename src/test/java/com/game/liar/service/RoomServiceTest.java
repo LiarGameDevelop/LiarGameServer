@@ -9,6 +9,8 @@ import com.game.liar.room.repository.RoomRepository;
 import com.game.liar.room.service.RoomService;
 import com.game.liar.security.JwtService;
 import com.game.liar.security.dto.TokenDto;
+import com.game.liar.user.domain.GameUser;
+import com.game.liar.user.domain.UserId;
 import com.game.liar.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

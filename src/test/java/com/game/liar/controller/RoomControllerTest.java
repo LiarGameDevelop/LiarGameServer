@@ -2,6 +2,7 @@ package com.game.liar.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.game.liar.game.service.GameService;
+import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.dto.*;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -178,7 +179,7 @@ public class RoomControllerTest {
         EnterRoomResponse roomInfoFromGuest2 = enterRoom(roomId, "guest2");
         EnterRoomResponse roomInfoFromGuest3 = enterRoom(roomId, "guest3");
 
-        gameService.getGame(roomId).nextState();
+        gameService.getGame(RoomId.of(roomId)).nextState();
 
         //Then
         assertThat(roomInfoFromGuest.getToken().getAccessToken()).isNotEqualTo(accessTokenFromOwner);

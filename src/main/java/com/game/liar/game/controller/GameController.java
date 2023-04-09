@@ -14,6 +14,7 @@ import com.game.liar.game.dto.request.KeywordRequest;
 import com.game.liar.game.dto.request.LiarDesignateRequest;
 import com.game.liar.game.dto.response.*;
 import com.game.liar.game.service.GameService;
+import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.dto.UserDataDto;
 import com.game.liar.room.event.UserAddedEvent;
 import com.game.liar.room.event.UserRemovedEvent;
@@ -86,7 +87,7 @@ public class GameController {
     }
 
     private void messageHandler(String roomId, String requestStr) throws JsonDeserializeException {
-        if (gameService.checkRoomExist(roomId)) {
+        if (gameService.checkRoomExist(RoomId.of(roomId))) {
             MessageContainer request;
             try {
                 request = objectMapper.readValue(requestStr, MessageContainer.class);
@@ -113,7 +114,7 @@ public class GameController {
 
     @EventListener
     @Async
-    public void onUserRemoved(UserRemovedEvent event) throws JsonProcessingException {
+    public void onUserRemoved(UserRemovedEvent event) {
         log.info("[onUserRemoved] user Removed. event :{}", event);
         String roomId = event.getRoomId();
         UserDataDto user = event.getUser();
@@ -234,7 +235,7 @@ public class GameController {
                     sendPrivateMessage(
                             uuid
                             , new MessageContainer.Message(NOTIFY_LIAR_OPEN_REQUEST, new GameStateResponse(gameInfo.getState()))
-                            , gameInfo.getOwnerId()
+                            , gameInfo.getOwnerId().getUserId()
                             , roomId);
                 } else {
                     sendNeedVote(roomId);
@@ -294,7 +295,7 @@ public class GameController {
     };
 
     private void __notifyLiarAnswerNeeded(String roomId) {
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         String liar = gameInfo.getLiarId();
         log.info("[API]notifyLiarAnswerNeeded from [room:{}] to [liar:{}]", roomId, liar);
         sendPrivateMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_NEEDED, null), liar, roomId);
@@ -348,7 +349,7 @@ public class GameController {
         taskScheduler.schedule(new TimerTask() {
             @Override
             public void run() {
-                GameInfo gameInfo = gameService.getGame(roomId);
+                GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
                 log.info("[API]timer run notifyTurnTimeout from [room:{}][timer:{}]", roomId, this);
                 if (!gameInfo.isTurnTimerRunning()) {
                     this.cancel();
@@ -368,7 +369,7 @@ public class GameController {
         taskScheduler.schedule(new TimerTask() {
             @Override
             public void run() {
-                GameInfo gameInfo = gameService.getGame(roomId);
+                GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
                 if (!gameInfo.isVoteTimerRunning()) return;
                 log.info("[API]notifyVoteTimeout from [room:{}]", roomId);
                 sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_VOTE_TIMEOUT, null), roomId);
@@ -391,7 +392,7 @@ public class GameController {
         taskScheduler.schedule(new TimerTask() {
             @Override
             public void run() {
-                GameInfo gameInfo = gameService.getGame(roomId);
+                GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
                 if (!gameInfo.isAnswerTimerRunning()) return;
                 log.info("[API]notifyLiarAnswerTimeout from [room:{}]", roomId);
                 sendPublicMessage(request.getUuid(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_TIMEOUT, null), roomId);

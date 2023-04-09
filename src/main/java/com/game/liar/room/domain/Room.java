@@ -1,6 +1,7 @@
 package com.game.liar.room.domain;
 
 import com.game.liar.game.domain.RoomSettings;
+import com.game.liar.user.domain.UserId;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,7 +13,7 @@ import javax.persistence.*;
 @Getter
 @Builder
 @Entity
-@Table(name = "room")
+@Table(name = "ROOM")
 @ToString
 public class Room extends BaseEntity {
     @EmbeddedId
@@ -20,7 +21,7 @@ public class Room extends BaseEntity {
     @Embedded
     private RoomSettings settings;
     @Embedded
-    @AttributeOverride(name = "userId", column = @Column(name = "owner_id"))
+    @AttributeOverride(name = "userId", column = @Column(name = "OWNER_ID"))
     private UserId ownerId;
 
     public Room(RoomId id, RoomSettings settings, UserId ownerId) {

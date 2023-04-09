@@ -1,9 +1,9 @@
 package com.game.liar.user.repository;
 
 import com.game.liar.room.domain.Authority;
-import com.game.liar.room.domain.GameUser;
+import com.game.liar.user.domain.GameUser;
 import com.game.liar.room.domain.RoomId;
-import com.game.liar.room.domain.UserId;
+import com.game.liar.user.domain.UserId;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.security.crypto.password.PasswordEncoder;

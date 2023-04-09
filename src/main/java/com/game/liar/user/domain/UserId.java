@@ -1,4 +1,4 @@
-package com.game.liar.room.domain;
+package com.game.liar.user.domain;
 
 import lombok.ToString;
 
@@ -14,7 +14,7 @@ public class UserId implements Serializable {
         this.userId = userId;
     }
 
-    @Column(name="user_id")
+    @Column(name="USER_ID")
     private String userId;
 
     protected UserId() {

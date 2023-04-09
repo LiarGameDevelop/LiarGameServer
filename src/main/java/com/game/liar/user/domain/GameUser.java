@@ -1,16 +1,18 @@
-package com.game.liar.room.domain;
+package com.game.liar.user.domain;
 
+import com.game.liar.room.domain.Authority;
+import com.game.liar.room.domain.BaseEntity;
+import com.game.liar.room.domain.RoomId;
 import lombok.Getter;
 import lombok.ToString;
 
 import javax.persistence.*;
-import java.io.Serializable;
 
 @Getter
 @ToString
-@Table(name = "game_user")
+@Table(name = "GAME_USER")
 @Entity
-public class GameUser extends BaseEntity implements Serializable {
+public class GameUser extends BaseEntity{
     @EmbeddedId
     private UserId userId;
 

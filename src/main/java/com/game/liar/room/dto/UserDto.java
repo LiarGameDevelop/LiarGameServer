@@ -1,6 +1,6 @@
 package com.game.liar.room.dto;
 
-import com.game.liar.room.domain.GameUser;
+import com.game.liar.user.domain.GameUser;
 import com.game.liar.room.domain.RoomId;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.*;

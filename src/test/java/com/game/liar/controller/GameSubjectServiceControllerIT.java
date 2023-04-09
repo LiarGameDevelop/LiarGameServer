@@ -29,8 +29,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 public class GameSubjectServiceControllerIT {
     @Autowired
     private MockMvc mockMvc;
-//    @MockBean
-//    private GameSubjectService subjectService;
 
     @Test
     @DisplayName("전체 게임 카테고리를 조회한다")

@@ -1,6 +1,8 @@
 package com.game.liar.chat.domain;
 
 import com.game.liar.game.domain.Global;
+import com.game.liar.room.domain.RoomId;
+import com.game.liar.user.domain.UserId;
 import lombok.*;
 
 import javax.persistence.*;
@@ -16,11 +18,13 @@ public class ChatMessage extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String senderId;
+    @Embedded
+    private UserId senderId;
 
     private String message;
 
     private Global.MessageType type;
 
-    private String roomId;
+    @Embedded
+    private RoomId roomId;
 }

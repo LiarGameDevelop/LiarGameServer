@@ -2,9 +2,9 @@ package com.game.liar.service;
 
 import com.game.liar.game.domain.RoomSettings;
 import com.game.liar.room.domain.Authority;
-import com.game.liar.room.domain.GameUser;
+import com.game.liar.user.domain.GameUser;
 import com.game.liar.room.domain.RoomId;
-import com.game.liar.room.domain.UserId;
+import com.game.liar.user.domain.UserId;
 import com.game.liar.room.dto.RoomDto;
 import com.game.liar.room.dto.RoomInfoResponse;
 import com.game.liar.room.dto.UserDataDto;
@@ -23,7 +23,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Optional;
 
@@ -45,7 +44,7 @@ public class UserEventListenerTest {
 
     @Test
     @DisplayName("connect 이벤트가 들어오면 userAdd event를 발생시킨다")
-    public void connectionAddEvent() throws Exception {
+    public void connectionAddEvent() {
         //Given
         when(userRepository.findByUserIdAndRoomId(any(), any()))
                 .thenReturn(Optional.of(new GameUser(UserId.of("userId"), RoomId.of("roomId"), "username", "password", Authority.ROLE_USER)));
@@ -61,7 +60,7 @@ public class UserEventListenerTest {
 
     @Test
     @DisplayName("disconnect 이벤트가 들어오면 userRemoved event를 발생시킨다")
-    public void disconnectionAddEvent() throws Exception {
+    public void disconnectionAddEvent() {
         //Given
         when(userRepository.findBySessionId(any()))
                 .thenReturn(Optional.of(new GameUser(UserId.of("userId"), RoomId.of("roomId"), "username", "password", Authority.ROLE_USER)));
