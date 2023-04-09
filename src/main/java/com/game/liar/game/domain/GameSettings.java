@@ -18,25 +18,21 @@ import java.util.concurrent.ConcurrentHashMap;
 @Embeddable
 @Slf4j
 public class GameSettings extends MessageBody {
-    @Column
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private String id;
-
     private Integer round;
     private Integer turn;
 
     @ElementCollection
     @CollectionTable(
             name = "settings_category",
-            joinColumns = @JoinColumn(name = "settings_id")
+            joinColumns = @JoinColumn(name = "SETTINGS_ID")
     )
-    @Column(name = "category")
+    @Column(name = "CATEGORY")
     private List<String> category;
 
     @ElementCollection
     @CollectionTable(
             name = "selected_category",
-            joinColumns = @JoinColumn(name = "settings_id")
+            joinColumns = @JoinColumn(name = "SETTINGS_ID")
     )
     @MapKeyColumn(name = "category")
     @Getter

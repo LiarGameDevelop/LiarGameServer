@@ -10,9 +10,7 @@ import java.util.Objects;
 @Embeddable
 @ToString
 public class RoomId implements Serializable {
-    //private static final long serialVersionUID = -3438522768010613027L;
-
-    @Column(name = "room_id")
+    @Column(name = "ROOM_ID")
     private String id;
 
     protected RoomId(){}

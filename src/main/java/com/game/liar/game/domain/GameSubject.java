@@ -10,9 +10,7 @@ import java.util.Objects;
 @Entity
 @ToString
 public class GameSubject implements Comparable<GameSubject> {
-    @Id
-    @Column(name = "id")
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)

@@ -1,8 +1,8 @@
 package com.game.liar.security;
 
-import com.game.liar.room.domain.GameUser;
+import com.game.liar.user.domain.GameUser;
 import com.game.liar.room.domain.RoomId;
-import com.game.liar.room.domain.UserId;
+import com.game.liar.user.domain.UserId;
 import com.game.liar.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

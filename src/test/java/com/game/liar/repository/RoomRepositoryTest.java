@@ -3,7 +3,7 @@ package com.game.liar.repository;
 import com.game.liar.game.domain.RoomSettings;
 import com.game.liar.room.domain.Room;
 import com.game.liar.room.domain.RoomId;
-import com.game.liar.room.domain.UserId;
+import com.game.liar.user.domain.UserId;
 import com.game.liar.room.dto.RoomInfoRequest;
 import com.game.liar.room.repository.RoomRepository;
 import org.junit.jupiter.api.DisplayName;

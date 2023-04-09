@@ -1,20 +1,18 @@
 package com.game.liar.room.service;
 
 import com.game.liar.exception.MaxCountException;
-import com.game.liar.exception.NotAllowedActionException;
 import com.game.liar.exception.NotExistException;
 import com.game.liar.game.domain.RoomSettings;
-import com.game.liar.room.domain.GameUser;
+import com.game.liar.user.domain.GameUser;
 import com.game.liar.room.domain.Room;
 import com.game.liar.room.domain.RoomId;
-import com.game.liar.room.domain.UserId;
+import com.game.liar.user.domain.UserId;
 import com.game.liar.room.dto.*;
 import com.game.liar.room.event.UserAddedEvent;
 import com.game.liar.room.event.UserRemovedEvent;
 import com.game.liar.room.repository.RoomRepository;
 import com.game.liar.security.JwtService;
 import com.game.liar.security.dto.TokenDto;
-import com.game.liar.security.util.SecurityUtil;
 import com.game.liar.user.repository.UserRepository;
 import com.game.liar.websocket.WebsocketConnectedEvent;
 import com.game.liar.websocket.WebsocketDisconnectedEvent;

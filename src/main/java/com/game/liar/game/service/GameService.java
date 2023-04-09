@@ -10,9 +10,11 @@ import com.game.liar.game.dto.request.KeywordRequest;
 import com.game.liar.game.dto.request.LiarDesignateRequest;
 import com.game.liar.game.dto.response.*;
 import com.game.liar.game.repository.GameInfoRepository;
+import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.dto.RoomIdRequest;
 import com.game.liar.room.dto.UserDataDto;
 import com.game.liar.room.service.RoomService;
+import com.game.liar.user.domain.UserId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,12 +31,12 @@ public class GameService {
     private final GameSubjectService gameSubjectService;
     private final GameInfoRepository gameInfoRepository;
 
-    public boolean checkRoomExist(String roomId) {
+    public boolean checkRoomExist(RoomId roomId) {
         return gameInfoRepository.findById(roomId).isPresent();
     }
 
     public GameInfo getGameState(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
 
         if (gameInfo == null) {
             throw new NotExistException(String.format("There is no room. Room ID :%s", roomId));
@@ -43,26 +45,26 @@ public class GameService {
         return gameInfo;
     }
 
-    public boolean isGameStarted(String roomId){
+    public boolean isGameStarted(RoomId roomId){
         return !getGame(roomId).getState().equals(GameState.BEFORE_START);
     }
 
-    public GameInfo getGame(String roomId) {
+    public GameInfo getGame(RoomId roomId) {
         return gameInfoRepository.findById(roomId).orElseThrow(() -> new NotExistException(String.format("There is no game in the room [%s]",roomId)));
     }
 
-    public GameInfo getGameForUpdate(String roomId) {
+    public GameInfo getGameForUpdate(RoomId roomId) {
         return gameInfoRepository.findByRoomId(roomId).orElseThrow(() -> new NotExistException(String.format("There is no game in the room [%s]",roomId)));
     }
 
     @Transactional
     public GameInfo startGame(MessageContainer request, String roomId) throws NotExistException, NotAllowedActionException, StateNotAllowedExpcetion {
         String senderID = request.getSenderId();
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         if (gameInfo == null) {
             throw new NotExistException(String.format("There is no room. Room ID :%s", roomId));
         }
-        if (!gameInfo.getOwnerId().equals(senderID)) {
+        if (!gameInfo.getOwnerId().getUserId().equals(senderID)) {
             throw new NotAllowedActionException("You are not owner of this room");
         }
         if (gameInfo.getState() != GameState.BEFORE_START)
@@ -90,12 +92,12 @@ public class GameService {
     }
 
     public GameInfo addGame(String roomId, String roomOwnerId) {
-        if (gameInfoRepository.findById(roomId).isPresent()) {
+        if (gameInfoRepository.findById(RoomId.of(roomId)).isPresent()) {
             log.error("The game manager already exists");
             throw new AlreadyExistException("The game manager already exists");
         }
 
-        GameInfo gameInfo = new GameInfo(roomId, roomOwnerId);
+        GameInfo gameInfo = new GameInfo(RoomId.of(roomId), UserId.of(roomOwnerId));
         saveData(gameInfo);
         log.debug("game manager created");
         return gameInfo;
@@ -105,7 +107,7 @@ public class GameService {
         gameInfoRepository.save(gameInfo);
     }
 
-    public void removeGame(String roomId) {
+    public void removeGame(RoomId roomId) {
         if (!gameInfoRepository.findById(roomId).isPresent()) {
             log.error("The game manager does not exists");
             return;
@@ -121,8 +123,8 @@ public class GameService {
     @Transactional
     public GameInfo startRound(MessageContainer request, String roomId) {
         String senderID = request.getSenderId();
-        GameInfo gameInfo = getGame(roomId);
-        if (!gameInfo.getOwnerId().equals(senderID)) {
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
+        if (!gameInfo.getOwnerId().getUserId().equals(senderID)) {
             throw new NotAllowedActionException("You are not owner of this room");
         }
         if (gameInfo.getState() != GameState.BEFORE_ROUND)
@@ -139,8 +141,8 @@ public class GameService {
     @Transactional
     public GameInfo selectLiar(MessageContainer request, String roomId) {
         String senderID = request.getSenderId();
-        GameInfo gameInfo = getGame(roomId);
-        if (!gameInfo.getOwnerId().equals(senderID))
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
+        if (!gameInfo.getOwnerId().getUserId().equals(senderID))
             throw new NotAllowedActionException("You are not owner of this room");
         if (gameInfo.getState() != GameState.SELECT_LIAR)
             throw new StateNotAllowedExpcetion("Current State is not SELECT_LIAR");
@@ -163,8 +165,8 @@ public class GameService {
     @Transactional
     public GameInfo openKeyword(MessageContainer request, String roomId) {
         String senderID = request.getSenderId();
-        GameInfo gameInfo = getGame(roomId);
-        if (!gameInfo.getOwnerId().equals(senderID))
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
+        if (!gameInfo.getOwnerId().getUserId().equals(senderID))
             throw new NotAllowedActionException("You are not owner of this room");
         if (gameInfo.getState() != GameState.OPEN_KEYWORD)
             throw new StateNotAllowedExpcetion(String.format("Current State is not OPEN_KEYWORD. state:%s", gameInfo.getState()));
@@ -191,7 +193,7 @@ public class GameService {
     }
 
     private void createTurnOrder(GameInfo gameInfo) {
-        List<String> valuesList = new ArrayList<>(getUserIdListInRoom(gameInfo.getRoomId()));
+        List<String> valuesList = new ArrayList<>(getUserIdListInRoom(gameInfo.getRoomId().getId()));
         log.info("[createTurnOrder] valueslist {}",valuesList);
         Collections.shuffle(valuesList);
         gameInfo.initializeRoundTurnOrder(valuesList);
@@ -200,7 +202,7 @@ public class GameService {
 
     @Transactional
     public GameInfo updateTurn(String senderId, String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         log.info("[updateTurn] gameinfo : {}",gameInfo);
         if (gameInfo.getState() != GameState.IN_PROGRESS)
             throw new StateNotAllowedExpcetion(String.format("Current State is not IN_PROGRESS. state:%s", gameInfo.getState()));
@@ -221,7 +223,7 @@ public class GameService {
 
     @Transactional
     public GameInfo notifyFindingLiarEnd(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         if (gameInfo.getState() != GameState.IN_PROGRESS)
             throw new StateNotAllowedExpcetion(String.format("Current State is not IN_PROGRESS. state:%s", gameInfo.getState()));
         gameInfo.resetTurn();
@@ -235,14 +237,14 @@ public class GameService {
 
     @Transactional
     public GameInfo nextGameState(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         gameInfo.nextState();
         return gameInfo;
     }
 
     @Transactional
     public void addMember(String roomId, UserDataDto gameUser) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         if (gameInfo != null) {
             log.info("[addMember] room id : {} added user: {}", roomId, gameUser);
             gameInfo.addUser(gameUser);
@@ -252,7 +254,7 @@ public class GameService {
     }
 
     public void deleteMember(String roomId, UserDataDto gameUser) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         if (gameInfo != null) {
             log.info("[deleteMember] room id : {} removed user: {}", roomId, gameUser);
             gameInfo.deleteUser(gameUser);
@@ -263,7 +265,7 @@ public class GameService {
 
     @Transactional
     public GameInfo voteLiar(MessageContainer request, String roomId) {
-        GameInfo gameInfo = getGameForUpdate(roomId);
+        GameInfo gameInfo = getGameForUpdate(RoomId.of(roomId));
         String senderId = request.getSenderId();
         if (gameInfo.getState() != GameState.VOTE_LIAR) {
             throw new StateNotAllowedExpcetion(String.format("Current State is not VOTE_LIAR. state:%s", gameInfo.getState()));
@@ -283,7 +285,7 @@ public class GameService {
 
     @Transactional(readOnly = true)
     public VoteResult getMostVoted(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         List<Map.Entry<String, Long>> mostVoted = gameInfo.getMostVotedUserIdAndCount();
         return VoteResult.builder()
                 .voteResult(gameInfo.getVoteResult())
@@ -293,12 +295,12 @@ public class GameService {
 
     @Transactional
     public OpenLiarResponse openLiar(MessageContainer request, String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         String senderId = request.getSenderId();
         if (gameInfo.getState() != GameState.OPEN_LIAR) {
             throw new StateNotAllowedExpcetion(String.format("Current State is not OPEN_LIAR. state:%s", gameInfo.getState()));
         }
-        if (!senderId.equals(gameInfo.getOwnerId())) {
+        if (!senderId.equals(gameInfo.getOwnerId().getUserId())) {
             throw new NotAllowedActionException("Only room owner can open liar");
         }
         gameInfo.nextState();
@@ -308,7 +310,7 @@ public class GameService {
 
     @Transactional
     public LiarAnswerResponse checkKeywordCorrect(MessageContainer request, String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         String senderId = request.getSenderId();
         if (gameInfo.getState() != GameState.LIAR_ANSWER) {
             throw new StateNotAllowedExpcetion(String.format("Current State is not LIAR_ANSWER. state:%s", gameInfo.getState()));
@@ -324,12 +326,12 @@ public class GameService {
 
     @Transactional
     public ScoreboardResponse notifyScores(MessageContainer request, String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         String senderId = request.getSenderId();
         if (gameInfo.getState() != GameState.PUBLISH_SCORE) {
             throw new StateNotAllowedExpcetion(String.format("Current State is not PUBLISH_SCORE. state:%s", gameInfo.getState()));
         }
-        if (!senderId.equals(gameInfo.getOwnerId())) {
+        if (!senderId.equals(gameInfo.getOwnerId().getUserId())) {
             throw new NotAllowedActionException("Only Room owner can query user scores");
         }
         gameInfo.updateScoreBoard();
@@ -338,7 +340,7 @@ public class GameService {
 
     @Transactional
     public GameInfo notifyRoundEnd(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         if (gameInfo.getState() != GameState.PUBLISH_SCORE)
             throw new StateNotAllowedExpcetion(String.format("Current State is not PUBLISH_SCORE. state:%s", gameInfo.getState()));
         if (gameInfo.getCurrentRound().intValue() == gameInfo.getGameSettings().getRound().intValue())
@@ -350,17 +352,17 @@ public class GameService {
 
     @Transactional
     public void resetLiarInfo(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         gameInfo.resetLiarInfo();
     }
 
     @Transactional
     public RankingsResponse publishRankings(MessageContainer request, String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         String senderId = request.getSenderId();
         if (gameInfo.getState() != GameState.PUBLISH_RANKINGS)
             throw new StateNotAllowedExpcetion(String.format("Current State is not PUBLISH_RANKINGS. state:%s", gameInfo.getState()));
-        if (!senderId.equals(gameInfo.getOwnerId())) {
+        if (!senderId.equals(gameInfo.getOwnerId().getUserId())) {
             throw new NotAllowedActionException("Only Room owner can query publish rankings");
         }
         //{"rankings":[{"id":"id1","score":12},{"id":"id2","score":11}]}
@@ -372,7 +374,7 @@ public class GameService {
 
     @Transactional
     public List<String> getNotVoteUserList(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         List<String> notVoteUserList = new ArrayList<>();
         log.info("gameInfo.getUserList : {}", getUserIdListInRoom(roomId));
         log.info("gameInfo.getVoteResult : {}", gameInfo.getVoteResult());
@@ -385,7 +387,7 @@ public class GameService {
 
     @Transactional(readOnly = true)
     public GameCategoryResponse getGameCategory(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
 
         if (gameInfo == null) {
             throw new NotExistException(String.format("There is no room. Room ID :%s", roomId));
@@ -401,43 +403,43 @@ public class GameService {
 
     @Transactional
     public void cancelTurnTimer(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         gameInfo.cancelTurnTimer();
     }
 
     @Transactional
     public void cancelVoteTimer(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         gameInfo.cancelVoteTimer();
     }
 
     @Transactional
     public void cancelAnswerTimer(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         gameInfo.cancelAnswerTimer();
     }
 
     @Transactional
     public void startTurnTimer(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         gameInfo.startTurnTimer();
     }
 
     @Transactional
     public void startVoteTimer(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         gameInfo.startVoteTimer();
     }
 
     @Transactional
     public void startAnswerTimer(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         gameInfo.startAnswerTimer();
     }
 
     @Transactional
     public void resetGame(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         gameInfo.resetTurn();
         gameInfo.resetLiarInfo();
         gameInfo.resetScoreBoard();
@@ -450,26 +452,25 @@ public class GameService {
 
     @Transactional(readOnly = true)
     public boolean isVoteFinished(String roomId){
-        //Integer voteCount = gameInfoRepository.findVoteCountByRoomId(roomId);
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         return gameInfo.voteFinished();
     }
 
     @Transactional(readOnly = true)
     public String getCurrentTurnUser(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         return gameInfo.getCurrentTurnId();
     }
 
     @Transactional(readOnly = true)
     public boolean isLastTurn(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         return gameInfo.isLastTurn();
     }
 
     @Transactional
     public GameInfo resetVoteResult(String roomId) {
-        GameInfo gameInfo = getGame(roomId);
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
         gameInfo.resetVoteResult();
         return gameInfo;
     }

@@ -1,8 +1,5 @@
 package com.game.liar.room.dto;
 
-import com.game.liar.room.domain.RoomId;
-import com.game.liar.room.domain.UserId;
-import com.game.liar.security.dto.TokenDto;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

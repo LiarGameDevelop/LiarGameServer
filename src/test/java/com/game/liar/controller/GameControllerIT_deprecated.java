@@ -16,6 +16,7 @@ import com.game.liar.game.dto.request.KeywordRequest;
 import com.game.liar.game.dto.request.LiarDesignateRequest;
 import com.game.liar.game.dto.response.*;
 import com.game.liar.game.service.GameService;
+import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.dto.EnterRoomResponse;
 import com.game.liar.room.dto.UserDataDto;
 import com.game.liar.utils.BeanUtils;
@@ -150,7 +151,7 @@ class GameControllerIT_deprecated {
     }
 
     private String 방생성(String roomOwner) throws Exception {
-        stompObject = createStompObj(mockMvc, port);
+        stompObject = createRoomAndStompObj(mockMvc, port);
 
         EnterRoomResponse roomInfo = stompObject.getRoomInfo();
         roomId = roomInfo.getRoom().getRoomId();
@@ -167,9 +168,9 @@ class GameControllerIT_deprecated {
     }
 
     void teardown() {
-        gameService.getGame(roomId).cancelTurnTimer();
-        gameService.getGame(roomId).cancelVoteTimer();
-        gameService.getGame(roomId).cancelAnswerTimer();
+        gameService.getGame(RoomId.of(roomId)).cancelTurnTimer();
+        gameService.getGame(RoomId.of(roomId)).cancelVoteTimer();
+        gameService.getGame(RoomId.of(roomId)).cancelAnswerTimer();
         stompObject.getStompSession().disconnect();
         sessionInfoList.clear();
     }
@@ -494,7 +495,7 @@ class GameControllerIT_deprecated {
         assertThat(messageToUser.getSenderId()).isEqualTo(expectMessageToUser.getSenderId());
         assertThat(messageToUser.getUuid()).isEqualTo(expectMessageToUser.getUuid());
         assertThat(messageToUser.getMessage().getMethod()).isEqualTo(expectMessageToUser.getMessage().getMethod());
-        if (gameService.getGame(roomId).getLiarId().equals(ownerId)) {
+        if (gameService.getGame(RoomId.of(roomId)).getLiarId().equals(ownerId)) {
             assertThat(messageToOwner.getMessage().getBody()).isEqualTo(new LiarResponse(GameState.OPEN_KEYWORD, true));
             assertThat(messageToUser.getMessage().getBody()).isEqualTo(new LiarResponse(GameState.OPEN_KEYWORD, false));
         } else {
@@ -609,7 +610,7 @@ class GameControllerIT_deprecated {
         StompSession.Subscription sub = stompSession.subscribe(String.format("%s%s.user.*", SUBSCRIBE_PUBLIC, roomId), handler1);
         StompSession.Subscription sub2 = sessionInfoList.get(0).session.subscribe(String.format("%s%s.user.*", SUBSCRIBE_PUBLIC, roomId), handler2);
 
-        __sendRequestTurnFinished(gameService.getGame(roomId).getTurnOrder().get(0), uuid);
+        __sendRequestTurnFinished(gameService.getGame(RoomId.of(roomId)).getTurnOrder().get(0), uuid);
         Thread.sleep(2000);
         //Then
         MessageContainer message1 = handler1.getCompletableFuture(0);
@@ -667,7 +668,7 @@ class GameControllerIT_deprecated {
         stompSession.subscribe(String.format("%s%s.user.*", SUBSCRIBE_PUBLIC, roomId), handler1);
         sessionInfoList.get(0).session.subscribe(String.format("%s%s.user.*", SUBSCRIBE_PUBLIC, roomId), handler2);
 
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         System.out.println("turn order:" + gameInfo.getTurnOrder());
         String uuid = UUID.randomUUID().toString();
         //1번차례임
@@ -932,7 +933,7 @@ class GameControllerIT_deprecated {
                 param -> assertThat(publicMessage1.getMessage().getBody()).isEqualTo(expectMessageRoomOwner.getMessage().getBody()),
                 param -> assertThat(publicMessage1.getMessage().getBody()).isEqualTo(expectMessageGuest.getMessage().getBody())
         );
-        String liarId = gameService.getGame(roomId).getLiarId();
+        String liarId = gameService.getGame(RoomId.of(roomId)).getLiarId();
         if (liarId.equals(ownerId)) {
             assertThat(publicMessage1.getMessage().getBody()).isEqualTo(expectMessageRoomOwner.getMessage().getBody());
             MessageContainer message3 = handler3.getCompletableFuture().get(5, SECONDS);
@@ -966,14 +967,14 @@ class GameControllerIT_deprecated {
         //When
         TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
 
-        String expectKeyword = gameService.getGame(roomId).getCurrentRoundKeyword();
+        String expectKeyword = gameService.getGame(RoomId.of(roomId)).getCurrentRoundKeyword();
         __checkIfLiarAnswerIsCorrect(handler1, expectKeyword);
 
         MessageContainer messageFromServer = handler1.getCompletableFuture(0);
         LiarAnswerResponse expectResultLiarIsRoomOwner = LiarAnswerResponse.builder()
                 .answer(true)
                 .state(GameState.PUBLISH_SCORE)
-                .keyword(gameService.getGame(roomId).getCurrentRoundKeyword())
+                .keyword(gameService.getGame(RoomId.of(roomId)).getCurrentRoundKeyword())
                 .build();
         MessageContainer expectMessageRoomOwner = Util.getExpectedMessageContainer(NOTIFY_LIAR_ANSWER_CORRECT, expectResultLiarIsRoomOwner);
 
@@ -982,7 +983,7 @@ class GameControllerIT_deprecated {
     }
 
     private void __checkIfLiarAnswerIsCorrect(TestStompHandlerChain<MessageContainer> handler1, String keyword) throws JsonProcessingException {
-        String liarId = gameService.getGame(roomId).getLiarId();
+        String liarId = gameService.getGame(RoomId.of(roomId)).getLiarId();
         KeywordRequest body = new KeywordRequest(keyword);
         if (liarId.equals(ownerId)) {
             stompSession.subscribe(String.format("%s%s.user.*", SUBSCRIBE_PUBLIC, roomId), handler1);
@@ -1029,7 +1030,7 @@ class GameControllerIT_deprecated {
         LiarAnswerResponse expectResultLiarIsRoomOwner = LiarAnswerResponse.builder()
                 .answer(false)
                 .state(GameState.PUBLISH_SCORE)
-                .keyword(gameService.getGame(roomId).getCurrentRoundKeyword())
+                .keyword(gameService.getGame(RoomId.of(roomId)).getCurrentRoundKeyword())
                 .build();
         expectMessageRoomOwner = Util.getExpectedMessageContainer(NOTIFY_LIAR_ANSWER_CORRECT, expectResultLiarIsRoomOwner);
 
@@ -1052,7 +1053,7 @@ class GameControllerIT_deprecated {
         LiarAnswerResponse expectResultLiarIsRoomOwner = LiarAnswerResponse.builder()
                 .answer(false)
                 .state(GameState.PUBLISH_SCORE)
-                .keyword(gameService.getGame(roomId).getCurrentRoundKeyword())
+                .keyword(gameService.getGame(RoomId.of(roomId)).getCurrentRoundKeyword())
                 .build();
         MessageContainer expectMessageRoomOwner = Util.getExpectedMessageContainer(NOTIFY_LIAR_ANSWER_CORRECT, expectResultLiarIsRoomOwner);
 
@@ -1084,7 +1085,7 @@ class GameControllerIT_deprecated {
         MessageContainer message2 = handler2.getCompletableFuture(0);
 
         ScoreboardResponse scoreBoardResponse;
-        if (gameService.getGame(roomId).getLiarId().equals(ownerId)) {
+        if (gameService.getGame(RoomId.of(roomId)).getLiarId().equals(ownerId)) {
             scoreBoardResponse = ScoreboardResponse.builder()
                     .scoreboard(new HashMap<String, Integer>() {{
                         put(ownerId, 3);
@@ -1128,7 +1129,7 @@ class GameControllerIT_deprecated {
         System.out.println("1라운드종료===================================================================");
 
         //When
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         gameController.setTimeout(20000);
 
         //TODO:completableFuture 사용하기
@@ -1138,7 +1139,7 @@ class GameControllerIT_deprecated {
         Thread.sleep(1000);
         __SendOpenKeyword(UUID.randomUUID().toString());
         Thread.sleep(1000);
-        gameInfo = gameService.getGame(roomId);
+        gameInfo = gameService.getGame(RoomId.of(roomId));
         __sendRequestTurnFinished(gameInfo.getTurnOrder().get(0), UUID.randomUUID().toString());
         Thread.sleep(1000);
         __sendRequestTurnFinished(gameInfo.getTurnOrder().get(1), UUID.randomUUID().toString());
@@ -1156,7 +1157,7 @@ class GameControllerIT_deprecated {
         Thread.sleep(1000);
         __openLiar();
         Thread.sleep(1000);
-        __checkIfLiarAnswerIsCorrect(new TestStompHandlerChain<>(MessageContainer.class), gameService.getGame(roomId).getCurrentRoundKeyword());
+        __checkIfLiarAnswerIsCorrect(new TestStompHandlerChain<>(MessageContainer.class), gameService.getGame(RoomId.of(roomId)).getCurrentRoundKeyword());
         Thread.sleep(1000);
 
         TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
@@ -1184,7 +1185,7 @@ class GameControllerIT_deprecated {
         handler2 = new TestStompHandlerChain<>(MessageContainer.class);
         stompSession.subscribe(String.format("%s%s.user.*", SUBSCRIBE_PUBLIC, roomId), handler1);
         sessionInfoList.get(0).session.subscribe(String.format("%s%s.user.*", SUBSCRIBE_PUBLIC, roomId), handler2);
-        gameInfo = gameService.getGame(roomId);
+        gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __sendPublishRankings();
         MessageContainer message1 = handler1.getCompletableFuture(0);

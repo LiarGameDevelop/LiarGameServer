@@ -1,7 +1,7 @@
 package com.game.liar.room.dto;
 
 import com.game.liar.exception.NotExistException;
-import com.game.liar.room.domain.GameUser;
+import com.game.liar.user.domain.GameUser;
 import io.swagger.annotations.ApiModelProperty;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;

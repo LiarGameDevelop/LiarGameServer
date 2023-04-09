@@ -70,7 +70,7 @@ public class Util {
         }
     }
 
-    public static TestStompObject createStompObj(MockMvc mockMvc, Integer port) throws Exception {
+    public static TestStompObject createRoomAndStompObj(MockMvc mockMvc, Integer port) throws Exception {
         EnterRoomResponse roomInfo = createRoom(mockMvc);
 
         WebSocketStompClient stompClient = new WebSocketStompClient(new SockJsClient(createTransportClient()));

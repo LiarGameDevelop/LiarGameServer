@@ -17,10 +17,13 @@ import com.game.liar.game.dto.response.ScoreboardResponse;
 import com.game.liar.game.repository.GameInfoRepository;
 import com.game.liar.game.service.GameService;
 import com.game.liar.game.service.GameSubjectService;
+import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.dto.*;
 import com.game.liar.room.service.RoomService;
 import com.game.liar.security.dto.TokenDto;
+import com.game.liar.user.domain.UserId;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -67,7 +70,7 @@ class GameServiceTest {
         String userId = room.getUser().getUserId();
         String username = room.getUser().getUsername();
 
-        GameInfo gameInfo = new GameInfo(roomId, "owner");
+        GameInfo gameInfo = new GameInfo(RoomId.of(roomId), UserId.of("owner"));
         gameService.addMember(room.getRoom().getRoomId(), new UserDataDto(username, userId));
         return userId;
     }
@@ -91,7 +94,7 @@ class GameServiceTest {
     }
 
     @Test
-    public void 게임카테고리얻기() throws Exception {
+    public void 게임카테고리얻기() {
         //Given
         gameService.addGame("room", "owner");
 
@@ -107,7 +110,7 @@ class GameServiceTest {
     }
 
     @Test
-    public void 게임시작을안해서_게임카테고리얻기_실패Error() throws Exception {
+    public void 게임시작을안해서_게임카테고리얻기_실패Error() {
         //Given
         //When
         //Then
@@ -115,11 +118,11 @@ class GameServiceTest {
     }
 
     @Test
-    public void 게임시작() throws Exception {
+    public void 게임시작() {
         //Given
         //when(gameInfoRepository.findById(any())).thenReturn(Optional.empty());
         gameService.addGame("room", "owner");
-        GameInfo gameInfo = new GameInfo("room", "owner");
+        GameInfo gameInfo = new GameInfo(RoomId.of("room"), UserId.of("owner"));
         //when(gameInfoRepository.findById(any())).thenReturn(Optional.of(gameInfo));
 
         when(gameSubjectService.getAllCategory()).thenReturn(Arrays.asList("food", "place"));
@@ -146,8 +149,8 @@ class GameServiceTest {
         assertThat(result.getState()).isEqualTo(GameState.BEFORE_START);
         result = gameService.startGame(messageContainer, "room");
         assertThat(result.getState()).isEqualTo(GameState.BEFORE_ROUND);
-        assertThat(result.getRoomId()).isEqualTo("room");
-        assertThat(result.getOwnerId()).isEqualTo("owner");
+        assertThat(result.getRoomId().getId()).isEqualTo("room");
+        assertThat(result.getOwnerId().getUserId()).isEqualTo("owner");
         assertThat(result.getGameSettings().getRound()).isEqualTo(5);
         assertThat(result.getGameSettings().getTurn()).isEqualTo(2);
         assertThat(result.getCurrentRound()).isEqualTo(0);
@@ -164,11 +167,11 @@ class GameServiceTest {
     }
 
     @Test
-    public void 게임시작_잘못된라운드수Error() throws Exception {
+    public void 게임시작_잘못된라운드수Error() {
         //Given
         //when(gameInfoRepository.findById(any())).thenReturn(Optional.empty());
         gameService.addGame("room", "owner");
-        GameInfo gameInfo = new GameInfo("room", "owner");
+        GameInfo gameInfo = new GameInfo(RoomId.of("room"), UserId.of("owner"));
         //when(gameInfoRepository.findById(any())).thenReturn(Optional.of(gameInfo));
 
         //When
@@ -189,11 +192,11 @@ class GameServiceTest {
     }
 
     @Test
-    public void 게임시작_잘못된턴수Error() throws Exception {
+    public void 게임시작_잘못된턴수Error() {
         //Given
         //when(gameInfoRepository.findById(any())).thenReturn(Optional.empty());
         gameService.addGame("room", "owner");
-        GameInfo gameInfo = new GameInfo("room", "owner");
+        GameInfo gameInfo = new GameInfo(RoomId.of("room"), UserId.of("owner"));
         //when(gameInfoRepository.findById(any())).thenReturn(Optional.of(gameInfo));
 
         //When
@@ -218,7 +221,7 @@ class GameServiceTest {
         //Given
         //when(gameInfoRepository.findById(any())).thenReturn(Optional.empty());
         gameService.addGame("room", "owner");
-        GameInfo gameInfo = new GameInfo("room", "owner");
+        GameInfo gameInfo = new GameInfo(RoomId.of("room"), UserId.of("owner"));
         //when(gameInfoRepository.findById(any())).thenReturn(Optional.of(gameInfo));
 
         //When
@@ -242,7 +245,7 @@ class GameServiceTest {
         //Given
         //when(gameInfoRepository.findById(any())).thenReturn(Optional.empty());
         gameService.addGame("room", "owner");
-        GameInfo gameInfo = new GameInfo("room", "owner");
+        GameInfo gameInfo = new GameInfo(RoomId.of("room"), UserId.of("owner"));
         //when(gameInfoRepository.findById(any())).thenReturn(Optional.of(gameInfo));
 
         //When
@@ -279,7 +282,7 @@ class GameServiceTest {
         __startRound("owner", "room");
 
         //Then
-        GameInfo gameInfo = gameService.getGame("room");
+        GameInfo gameInfo = gameService.getGame(RoomId.of("room"));
         assertThat(gameInfo).isNotNull();
         assertThat(gameInfo.getCurrentRound()).isEqualTo(1);
         assertThat(gameInfo.getState()).isEqualTo(GameState.SELECT_LIAR);
@@ -389,7 +392,7 @@ class GameServiceTest {
         EnterRoomResponse room = __createRoom("owner");
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         String guestId = __addRoomMember(roomId, "tester2");
 
         __startGame(roomOwnerId, roomId);
@@ -416,7 +419,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
         MessageContainer messageContainer;
@@ -443,7 +446,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
@@ -509,7 +512,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
@@ -531,7 +534,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
@@ -555,7 +558,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
@@ -584,7 +587,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
 
         MessageContainer messageContainer;
@@ -619,7 +622,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         MessageContainer messageContainer;
         __startGame(roomOwnerId, roomId);
@@ -653,7 +656,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
         __startGame(roomOwnerId, roomId);
@@ -750,7 +753,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
         __startGame(roomOwnerId, roomId);
@@ -801,7 +804,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
@@ -840,7 +843,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
@@ -869,7 +872,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
@@ -920,7 +923,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
@@ -956,7 +959,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
@@ -1003,7 +1006,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
@@ -1049,7 +1052,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
@@ -1095,7 +1098,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
@@ -1160,7 +1163,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
@@ -1206,7 +1209,7 @@ class GameServiceTest {
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
@@ -1250,13 +1253,14 @@ class GameServiceTest {
     }
 
     @Test
-    public void 순위알림요청이오면_순위를알려준다() throws Exception {
+    @DisplayName("순위알림요청이오면 순위를알려준다")
+    public void verify_notify_rankings() throws Exception {
         //Given
         EnterRoomResponse room = __createRoom("owner");
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         String guestId = __addRoomMember(roomId, "tester2");
-        GameInfo gameInfo = gameService.getGame(roomId);
+        GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
@@ -1319,7 +1323,6 @@ class GameServiceTest {
             )));
         }
         gameInfo.nextState();
-        //assertThat(gameInfo.getState()).isEqualTo(GameState.END_GAME);
         assertThat(gameInfo.getState()).isEqualTo(GameState.BEFORE_START);
     }
 }

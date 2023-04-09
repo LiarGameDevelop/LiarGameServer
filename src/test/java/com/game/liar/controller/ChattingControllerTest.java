@@ -4,6 +4,9 @@ import com.game.liar.Util;
 import com.game.liar.chat.domain.ChatMessageDto;
 import com.game.liar.chat.repository.ChatRepository;
 import com.game.liar.game.domain.Global;
+import com.game.liar.room.domain.Room;
+import com.game.liar.room.domain.RoomId;
+import com.game.liar.room.repository.RoomRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
@@ -17,7 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.concurrent.TimeoutException;
 
-import static com.game.liar.Util.createStompObj;
+import static com.game.liar.Util.createRoomAndStompObj;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -33,6 +36,8 @@ class ChattingControllerTest {
     @Autowired
     ChatRepository chatRepository;
     @Autowired
+    RoomRepository roomRepository;
+    @Autowired
     private MockMvc mockMvc;
 
     @BeforeEach
@@ -44,7 +49,7 @@ class ChattingControllerTest {
     @DisplayName("채팅채널에_메세지를보내면_메세지를받고_db에저장된다")
     public void verifyMessageFromChannelDBSave() throws Exception {
         //given
-        Util.TestStompObject obj1 = createStompObj(mockMvc, port);
+        Util.TestStompObject obj1 = createRoomAndStompObj(mockMvc, port);
         Util.PrivateStompHandler<ChatMessageDto> handler = new Util.PrivateStompHandler<>(ChatMessageDto.class);
         obj1.subscribe(handler, String.format("/topic/room.%s.chat", obj1.getRoomInfo().getRoom().getRoomId()));
 
@@ -62,10 +67,30 @@ class ChattingControllerTest {
     }
 
     @Test
+    @DisplayName("삭제된 방에 메세지가 전달될 경우 무시한다")
+    public void verifyIgnoreMessageFromNoRoom() throws Exception {
+        //given
+        Util.TestStompObject obj1 = createRoomAndStompObj(mockMvc, port);
+        Util.PrivateStompHandler<ChatMessageDto> handler = new Util.PrivateStompHandler<>(ChatMessageDto.class);
+        obj1.subscribe(handler, String.format("/topic/room.%s.chat", obj1.getRoomInfo().getRoom().getRoomId()));
+
+        //when
+        Room room = roomRepository.findById(RoomId.of(obj1.getRoomInfo().getRoom().getRoomId())).get();
+        roomRepository.delete(room);
+        ChatMessageDto expectedMessage = new ChatMessageDto("abc", "hello", Global.MessageType.MESSAGE);
+        obj1.getStompSession().send(String.format("/publish/messages.%s", obj1.getRoomInfo().getRoom().getRoomId()), expectedMessage);
+
+        //then
+        assertThrows(TimeoutException.class, () -> handler.getCompletableFuture().get(3, SECONDS));
+        System.out.println(chatRepository.findAll());
+        assertThat(chatRepository.findAll().size()).isEqualTo(0);
+    }
+
+    @Test
     @DisplayName("채팅채널 여러개가 서로 간섭하지 않아야한다")
     public void verifyDoNotDisturbAnotherChattingChannel() throws Exception {
-        Util.TestStompObject obj1 = createStompObj(mockMvc, port);
-        Util.TestStompObject obj2 = createStompObj(mockMvc, port);
+        Util.TestStompObject obj1 = createRoomAndStompObj(mockMvc, port);
+        Util.TestStompObject obj2 = createRoomAndStompObj(mockMvc, port);
         //given
         Util.PrivateStompHandler<ChatMessageDto> handler = new Util.PrivateStompHandler<>(ChatMessageDto.class);
         obj1.subscribe(handler, String.format("/topic/room.%s.chat", obj1.getRoomInfo().getRoom().getRoomId()));
