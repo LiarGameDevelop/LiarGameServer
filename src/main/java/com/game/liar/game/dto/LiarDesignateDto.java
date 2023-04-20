@@ -1,7 +1,6 @@
-package com.game.liar.game.dto.request;
+package com.game.liar.game.dto;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.game.liar.game.dto.MessageBody;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -12,6 +11,6 @@ import lombok.ToString;
 @AllArgsConstructor
 @ToString
 @JsonDeserialize
-public class LiarDesignateRequest extends MessageBody {
+public class LiarDesignateDto extends MessageBase {
     String liar;
 }

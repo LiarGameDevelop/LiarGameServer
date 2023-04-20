@@ -4,24 +4,20 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.game.liar.exception.NotAllowedActionException;
 import com.game.liar.exception.NotExistException;
+import com.game.liar.game.domain.Global;
+import com.game.liar.game.service.MessageService;
 import com.game.liar.security.domain.TokenProvider;
 import io.jsonwebtoken.Claims;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
-import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-
-import java.nio.charset.StandardCharsets;
 
 import static com.game.liar.security.util.JwtUtil.getRoomIdFromUUID;
 import static com.game.liar.security.util.JwtUtil.getUserIdFromUUID;
@@ -36,7 +32,7 @@ public class InboundInterceptor implements ChannelInterceptor {
     private final TokenProvider tokenProvider;
     private final ApplicationEventPublisher publisher;
 
-    private final RabbitTemplate rabbitTemplate;
+    private final MessageService messageService;
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -84,7 +80,7 @@ public class InboundInterceptor implements ChannelInterceptor {
 
             try {
                 ObjectMapper objectMapper = new ObjectMapper();
-                LoginInfo loginInfo = new LoginInfo(roomId, userId, true);
+                Global.LoginInfo loginInfo = new Global.LoginInfo(roomId, userId, true);
                 String msgJson = objectMapper.writeValueAsString(loginInfo);
 //                StompHeaderAccessor loginAccessor = StompHeaderAccessor.create(StompCommand.SEND);
 //                loginAccessor.setMessage(msgJson);
@@ -92,7 +88,7 @@ public class InboundInterceptor implements ChannelInterceptor {
 //                loginAccessor.setSessionAttributes(accessor.getSessionAttributes());
 //                loginAccessor.setDestination(String.format("/topic/room.%s.%s", roomId, login));
                 //channel.send(MessageBuilder.createMessage(msgJson.getBytes(StandardCharsets.UTF_8), loginAccessor.getMessageHeaders()));
-                rabbitTemplate.convertAndSend("amq.topic", String.format("room.%s.%s", roomId, login), loginInfo);
+                messageService.sendLoginInfoMessage(roomId, loginInfo);
             } catch (JsonProcessingException e) {
                 throw new RuntimeException(e);
             }
@@ -121,13 +117,5 @@ public class InboundInterceptor implements ChannelInterceptor {
             return bearerToken.substring(7);
         }
         throw new IllegalArgumentException(String.format("JWT exists, but format error %s", accessor.getNativeHeader(AUTHORIZATION_HEADER)));
-    }
-
-    @Getter
-    @AllArgsConstructor
-    private static class LoginInfo {
-        private String roomId;
-        private String userId;
-        private boolean login;
     }
 }

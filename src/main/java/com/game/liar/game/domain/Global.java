@@ -1,5 +1,8 @@
 package com.game.liar.game.domain;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -69,4 +72,12 @@ public class Global {
         put(GET_GATE_STATE, NOTIFY_GAME_STATE);
         put(GET_GAME_CATEGORY, NOTIFY_GAME_CATEGORY);
     }};
+
+    @AllArgsConstructor
+    @Getter
+    public static class LoginInfo {
+        String roomId;
+        String userId;
+        boolean login;
+    }
 }

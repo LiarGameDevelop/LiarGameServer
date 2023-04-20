@@ -2,7 +2,7 @@ package com.game.liar.game.dto.response;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.game.liar.game.domain.GameState;
-import com.game.liar.game.dto.MessageBody;
+import com.game.liar.game.dto.MessageBase;
 import lombok.*;
 
 @NoArgsConstructor
@@ -11,7 +11,7 @@ import lombok.*;
 @AllArgsConstructor
 @ToString
 @JsonDeserialize
-public class RoundResponse extends MessageBody {
+public class RoundResponse extends MessageBase {
     GameState state;
     int round;
 }

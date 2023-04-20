@@ -1,4 +1,4 @@
-package com.game.liar.game.dto.request;
+package com.game.liar.game.dto.response;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.game.liar.game.domain.GameSettings;
@@ -14,7 +14,7 @@ import java.util.List;
 @JsonDeserialize
 @Builder
 @ToString
-public class GameSettingsRequest extends MessageBase {
+public class GameSettingsResponse extends MessageBase {
     private Integer round;
     private Integer turn;
     private List<String> category;

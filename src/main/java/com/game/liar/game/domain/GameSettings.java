@@ -1,7 +1,7 @@
 package com.game.liar.game.domain;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.game.liar.game.dto.MessageBody;
+import com.game.liar.game.dto.MessageBase;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 
@@ -10,14 +10,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @JsonTypeName("gameSettings")
 @Embeddable
 @Slf4j
-public class GameSettings extends MessageBody {
+public class GameSettings extends MessageBase {
     private Integer round;
     private Integer turn;
 

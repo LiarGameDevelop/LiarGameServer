@@ -1,9 +1,10 @@
 package com.game.liar.game.dto.response;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.game.liar.game.domain.GameState;
-import com.game.liar.game.dto.MessageBody;
+import com.game.liar.game.dto.MessageBase;
 import lombok.*;
+
+import java.util.List;
 
 @NoArgsConstructor
 @Getter
@@ -11,7 +12,6 @@ import lombok.*;
 @AllArgsConstructor
 @ToString
 @JsonDeserialize
-public class TurnResponse extends MessageBody {
-    GameState state;
-    String turnId;
+public class TurnOrderResponse extends MessageBase {
+    List<String> turnOrder;
 }

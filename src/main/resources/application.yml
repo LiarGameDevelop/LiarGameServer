@@ -17,11 +17,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-#logging:
-#  level:
-#    org:
-#      springframework:
-#        web: DEBUG
 
 jasypt:
   encryptor:
@@ -34,21 +29,21 @@ rabbitmq:
 
 category:
   keywords:
-    음식:
+    food:
       - "피자"
       - "떡볶이"
       - "비빔밥"
       - "치킨"
       - "족발"
       - "순대"
-    스포츠:
+    sports:
       - "축구"
       - "농구"
       - "야구"
       - "발리볼"
       - "골프"
       - "컬링"
-    동물:
+    animal:
       - "개"
       - "소"
       - "토끼"
@@ -58,7 +53,7 @@ category:
       - "재규어"
       - "돼지"
       - "고래"
-    연예인:
+    celebrity:
       - "수지"
       - "아이유"
       - "제니"
@@ -66,7 +61,7 @@ category:
       - "RM"
       - "지수"
       - "지드래곤"
-    장소:
+    place:
       - "야구장"
       - "스키장"
       - "카페"
