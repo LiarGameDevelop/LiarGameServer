@@ -1,7 +1,7 @@
 package com.game.liar.game.dto.response;
 
 import com.game.liar.game.domain.GameState;
-import com.game.liar.game.dto.MessageBody;
+import com.game.liar.game.dto.MessageBase;
 import lombok.*;
 
 import javax.validation.constraints.NotBlank;
@@ -32,6 +32,6 @@ public class MessageResponse {
         @NotBlank
         String method;
         @NotBlank
-        MessageBody body;
+        MessageBase body;
     }
 }

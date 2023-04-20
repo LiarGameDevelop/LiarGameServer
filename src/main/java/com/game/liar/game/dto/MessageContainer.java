@@ -30,7 +30,7 @@ public class MessageContainer {
         @NotBlank
         String method;
         @NotBlank
-        MessageBody body;
+        MessageBase body;
 
         @Override
         public String toString() {

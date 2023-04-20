@@ -11,7 +11,6 @@ import java.util.concurrent.ScheduledFuture;
 
 public class TimerInfoThreadPoolTaskScheduler extends ThreadPoolTaskScheduler {
     Map<String, ScheduledFuture<?>> timerInfo = new ConcurrentHashMap<>();
-
     public ScheduledFuture<?> schedule(Runnable task, Instant instant, TimerInfo info) {
         ScheduledFuture<?> scheduledFuture = super.schedule(task, instant);
         timerInfo.put(info.getRoomId(), scheduledFuture);

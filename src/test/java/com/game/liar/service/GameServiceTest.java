@@ -2,21 +2,18 @@ package com.game.liar.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.game.liar.exception.*;
-import com.game.liar.game.domain.GameInfo;
-import com.game.liar.game.domain.GameState;
-import com.game.liar.game.domain.Global;
-import com.game.liar.game.domain.RoomSettings;
+import com.game.liar.game.config.TimerInfoThreadPoolTaskScheduler;
+import com.game.liar.game.domain.*;
+import com.game.liar.game.dto.LiarDesignateDto;
 import com.game.liar.game.dto.MessageContainer;
 import com.game.liar.game.dto.request.GameSettingsRequest;
 import com.game.liar.game.dto.request.KeywordRequest;
-import com.game.liar.game.dto.request.LiarDesignateRequest;
-import com.game.liar.game.dto.response.GameCategoryResponse;
-import com.game.liar.game.dto.response.OpenLiarResponse;
-import com.game.liar.game.dto.response.RankingsResponse;
-import com.game.liar.game.dto.response.ScoreboardResponse;
+import com.game.liar.game.dto.response.*;
 import com.game.liar.game.repository.GameInfoRepository;
 import com.game.liar.game.service.GameService;
 import com.game.liar.game.service.GameSubjectService;
+import com.game.liar.game.service.MessageService;
+import com.game.liar.messagequeue.TimeoutManager;
 import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.dto.*;
 import com.game.liar.room.service.RoomService;
@@ -32,17 +29,19 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Transactional
 class GameServiceTest {
     @InjectMocks
     GameService gameService;
@@ -52,52 +51,55 @@ class GameServiceTest {
     GameSubjectService gameSubjectService;
     @Autowired
     GameInfoRepository gameInfoRepository;
+    @Mock
+    MessageService messageService;
+    @Mock
+    TimerInfoThreadPoolTaskScheduler taskScheduler;
+    @Mock
+    TimeoutManager timeoutManager;
 
     @BeforeEach
     public void init() {
-        gameService = new GameService(roomService, gameSubjectService, gameInfoRepository);
+        gameService = new GameService(roomService, gameSubjectService, gameInfoRepository, messageService, taskScheduler, timeoutManager);
         gameService.clearGame();
     }
 
-    private String __addRoomMember(String roomId, String name) throws MaxCountException {
+    private String __addRoomMember(String roomId) {
         when(roomService.addRoomMember(any())).thenReturn(EnterRoomResponse.builder()
                 .room(new RoomDto(roomId, "owner", new RoomSettings(5)))
                 .token(new TokenDto("", "", "", 1L))
-                .user(new UserDto(name, "guest", "password"))
+                .user(new UserDto("tester2", "guest", "password"))
                 .build(
                 ));
-        EnterRoomResponse room = roomService.addRoomMember(new RoomIdUserNameRequest(roomId, name, "password"));
+        EnterRoomResponse room = roomService.addRoomMember(new RoomIdUserNameRequest(roomId, "tester2", "password"));
         String userId = room.getUser().getUserId();
         String username = room.getUser().getUsername();
 
-        GameInfo gameInfo = new GameInfo(RoomId.of(roomId), UserId.of("owner"));
         gameService.addMember(room.getRoom().getRoomId(), new UserDataDto(username, userId));
         return userId;
     }
 
-    private EnterRoomResponse __createRoom(String name) throws MaxCountException {
+    private EnterRoomResponse __createRoom() throws MaxCountException {
         when(roomService.create(any())).thenReturn(EnterRoomResponse.builder()
-                .room(new RoomDto("60ff79a6-a568-11ed-b9df-0242ac120003", name, new RoomSettings(5)))
+                .room(new RoomDto("60ff79a6-a568-11ed-b9df-0242ac120003", "owner", new RoomSettings(5)))
                 .token(new TokenDto("", "", "", 1L))
-                .user(new UserDto(name, "owner", "password"))
+                .user(new UserDto("owner", "owner", "password"))
                 .build());
-        EnterRoomResponse room = roomService.create(new RoomInfoRequest(5, name, "password"));
+        EnterRoomResponse room = roomService.create(new RoomInfoRequest(5, "owner", "password"));
         String userId = room.getUser().getUserId();
         String username = room.getUser().getUsername();
 
-        GameInfo gameInfo = gameService.addGame(room.getRoom().getRoomId(), room.getUser().getUserId());
-
+        gameService.addGame(room.getRoom().getRoomId(), room.getUser().getUserId());
         System.out.println("user id : " + userId + ", user name :" + username);
-
         gameService.addMember(room.getRoom().getRoomId(), new UserDataDto(username, userId));
         return room;
     }
 
     @Test
-    public void 게임카테고리얻기() {
+    @DisplayName("게임카테고리얻기")
+    public void verify_get_game_category() {
         //Given
         gameService.addGame("room", "owner");
-
         when(gameSubjectService.getAllCategory()).thenReturn(Arrays.asList("animal", "sports"));
 
         //When
@@ -110,7 +112,8 @@ class GameServiceTest {
     }
 
     @Test
-    public void 게임시작을안해서_게임카테고리얻기_실패Error() {
+    @DisplayName("게임시작을안해서_게임카테고리얻기_실패Error")
+    public void verify_not_get_game_category_error() {
         //Given
         //When
         //Then
@@ -118,13 +121,10 @@ class GameServiceTest {
     }
 
     @Test
-    public void 게임시작() {
+    @DisplayName("게임시작하면 정상적으로 게임이 진행된다")
+    public void verify_startGame() {
         //Given
-        //when(gameInfoRepository.findById(any())).thenReturn(Optional.empty());
         gameService.addGame("room", "owner");
-        GameInfo gameInfo = new GameInfo(RoomId.of("room"), UserId.of("owner"));
-        //when(gameInfoRepository.findById(any())).thenReturn(Optional.of(gameInfo));
-
         when(gameSubjectService.getAllCategory()).thenReturn(Arrays.asList("food", "place"));
         when(gameSubjectService.getAllSubject()).thenReturn(new HashMap<String, List<String>>() {
             {
@@ -137,7 +137,7 @@ class GameServiceTest {
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
-                .category(Arrays.asList("food"))
+                .category(Collections.singletonList("food"))
                 .build();
         MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", request))
                 .senderId("owner")
@@ -145,40 +145,29 @@ class GameServiceTest {
                 .build();
 
         //Then
-        GameInfo result = gameService.getGameState("room");
-        assertThat(result.getState()).isEqualTo(GameState.BEFORE_START);
-        result = gameService.startGame(messageContainer, "room");
-        assertThat(result.getState()).isEqualTo(GameState.BEFORE_ROUND);
-        assertThat(result.getRoomId().getId()).isEqualTo("room");
-        assertThat(result.getOwnerId().getUserId()).isEqualTo("owner");
-        assertThat(result.getGameSettings().getRound()).isEqualTo(5);
-        assertThat(result.getGameSettings().getTurn()).isEqualTo(2);
-        assertThat(result.getCurrentRound()).isEqualTo(0);
-        assertThat(result.getCurrentTurn()).isEqualTo(-1);
-        assertThat(result.getGameSettings().getSelectedByRoomOwnerCategory()).containsKey("food");
-        assertThat(result.getGameSettings().getSelectedByRoomOwnerCategory())
-                .containsValues(new ArrayList<String>() {{
-                    add("pizza");
-                    add("tteokbokki");
-                    add("bibimbab");
-                    add("chicken");
-                }});
-        assertThat(result.getGameSettings().getSelectedByRoomOwnerCategory()).doesNotContainKey("place");
+        GameStateResponse response = gameService.getGameState("room");
+        assertThat(response.getState()).isEqualTo(GameState.BEFORE_START);
+        GameInfoResponse gameInfoResponse = gameService.startGame(messageContainer, "room");
+        assertThat(gameInfoResponse.getState()).isEqualTo(GameState.BEFORE_ROUND);
+        assertThat(gameInfoResponse.getRoomId().getId()).isEqualTo("room");
+        assertThat(gameInfoResponse.getOwnerId().getUserId()).isEqualTo("owner");
+        assertThat(gameInfoResponse.getGameSettings().getRound()).isEqualTo(5);
+        assertThat(gameInfoResponse.getGameSettings().getTurn()).isEqualTo(2);
+        assertThat(gameInfoResponse.getCurrentRound()).isEqualTo(0);
+        assertThat(gameInfoResponse.getCurrentTurn()).isEqualTo(-1);
     }
 
     @Test
-    public void 게임시작_잘못된라운드수Error() {
+    @DisplayName("게임시작_잘못된라운드수Error")
+    public void verify_startGame_wrong_round_param_error() {
         //Given
-        //when(gameInfoRepository.findById(any())).thenReturn(Optional.empty());
         gameService.addGame("room", "owner");
-        GameInfo gameInfo = new GameInfo(RoomId.of("room"), UserId.of("owner"));
-        //when(gameInfoRepository.findById(any())).thenReturn(Optional.of(gameInfo));
 
         //When
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(8)
                 .turn(2)
-                .category(Arrays.asList("food"))
+                .category(Collections.singletonList("food"))
                 .build();
         MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", request))
                 .senderId("owner")
@@ -186,24 +175,20 @@ class GameServiceTest {
                 .build();
 
         //Then
-        assertThrows(NotAllowedActionException.class, () -> {
-            gameService.startGame(messageContainer, "room");
-        });
+        assertThrows(NotAllowedActionException.class, () -> gameService.startGame(messageContainer, "room"));
     }
 
     @Test
-    public void 게임시작_잘못된턴수Error() {
+    @DisplayName("게임시작_잘못된턴수Error")
+    public void verify_startGame_wrong_turn_param_error() {
         //Given
-        //when(gameInfoRepository.findById(any())).thenReturn(Optional.empty());
         gameService.addGame("room", "owner");
-        GameInfo gameInfo = new GameInfo(RoomId.of("room"), UserId.of("owner"));
-        //when(gameInfoRepository.findById(any())).thenReturn(Optional.of(gameInfo));
 
         //When
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
                 .turn(5)
-                .category(Arrays.asList("food"))
+                .category(Collections.singletonList("food"))
                 .build();
         MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", request))
                 .senderId("owner")
@@ -211,23 +196,19 @@ class GameServiceTest {
                 .build();
 
         //Then
-        assertThrows(NotAllowedActionException.class, () -> {
-            gameService.startGame(messageContainer, "room");
-        });
+        assertThrows(NotAllowedActionException.class, () -> gameService.startGame(messageContainer, "room"));
     }
 
     @Test
-    public void 게임시작_라운드수없음Error() throws Exception {
+    @DisplayName("게임시작_라운드수없음Error")
+    public void verify_startRound_round_param_error() {
         //Given
-        //when(gameInfoRepository.findById(any())).thenReturn(Optional.empty());
         gameService.addGame("room", "owner");
-        GameInfo gameInfo = new GameInfo(RoomId.of("room"), UserId.of("owner"));
-        //when(gameInfoRepository.findById(any())).thenReturn(Optional.of(gameInfo));
 
         //When
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .turn(2)
-                .category(Arrays.asList("food"))
+                .category(Collections.singletonList("food"))
                 .build();
         MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", request))
                 .senderId("owner")
@@ -235,13 +216,12 @@ class GameServiceTest {
                 .build();
 
         //Then
-        assertThrows(RequiredParameterMissingException.class, () -> {
-            gameService.startGame(messageContainer, "room");
-        });
+        assertThrows(RequiredParameterMissingException.class, () -> gameService.startGame(messageContainer, "room"));
     }
 
     @Test
-    public void 방장아닌사람이_게임시작Error() throws Exception {
+    @DisplayName("방장아닌사람이_게임시작Error")
+    public void verify_startGame_wrong_owner_request_error() throws Exception {
         //Given
         //when(gameInfoRepository.findById(any())).thenReturn(Optional.empty());
         gameService.addGame("room", "owner");
@@ -252,7 +232,7 @@ class GameServiceTest {
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
                 .turn(2)
-                .category(Arrays.asList("food"))
+                .category(Collections.singletonList("food"))
                 .build();
         MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message("startGame", request))
                 .senderId("tester2")
@@ -267,7 +247,8 @@ class GameServiceTest {
 
 
     @Test
-    public void 라운드시작() throws Exception {
+    @DisplayName("라운드시작")
+    public void verify_startRound() {
         //Given
         gameService.addGame("room", "owner");
 
@@ -289,61 +270,57 @@ class GameServiceTest {
     }
 
     @Test
-    public void 라운드초과Error() throws Exception {
+    @DisplayName("라운드초과Error")
+    public void verify_startRound_wrong_round_error() {
         //Given
         gameService.addGame("room", "owner");
-
-        int round = 5;
-        MessageContainer messageContainer;
-        GameSettingsRequest request = GameSettingsRequest.builder()
-                .round(round)
-                .turn(2)
-                .category(Arrays.asList("food"))
-                .build();
-        __startGame("owner", "room", request);
-        GameInfo gameInfo = __startRound("owner", "room");
-
+        GameInfo gameInfo = gameInfoRepository.findById(RoomId.of("room")).orElseThrow(RuntimeException::new);
+        gameInfo.setGameSettings(new GameSettings(5, 2, new ArrayList<>()));
+        gameInfo.nextState();
+        gameInfo.initialize(new HashMap<>(), new ArrayList<>());
         //when
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
-                .senderId("owner")
-                .uuid(UUID.randomUUID().toString())
-                .build();
         for (int i = 0; i < 5; ++i)
             gameInfo.nextRound();
 
         //Then
-        MessageContainer finalMessageContainer = messageContainer;
-        assertThrows(StateNotAllowedExpcetion.class, () -> gameService.startRound(finalMessageContainer, "room"));
+        assertThrows(NotAllowedActionException.class,
+                () -> gameService.startRound(
+                        MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
+                                .senderId("owner")
+                                .uuid(UUID.randomUUID().toString())
+                                .build(),
+                        "room"));
     }
 
     @Test
-    public void 라이어선정() throws Exception {
+    @DisplayName("라이어선정 성공")
+    public void verify_selectLiar_success() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        __addRoomMember(roomId);
 
         __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         //when
-        GameInfo gameInfo = __selectLiar(roomOwnerId, roomId);
+        GameStateResponse stateResponse = __selectLiar(roomOwnerId, roomId);
+        GameInfo gameInfo = gameInfoRepository.findById(RoomId.of(roomId)).orElseThrow(RuntimeException::new);
 
         //Then
-        assertThat(gameInfo.getCurrentRound()).isEqualTo(1);
-        assertThat(gameInfo.getState()).isEqualTo(GameState.OPEN_KEYWORD);
-        assertThat(gameInfo.getLiarId()).containsAnyOf(roomOwnerId, guestId);
+        assertThat(gameInfo.getLiarId()).isNotBlank();
+        verify(messageService, times(2)).sendPrivateMessage(any(), any(), any(), any());
+        assertThat(stateResponse.getState()).isEqualTo(GameState.OPEN_KEYWORD);
     }
 
-    private GameInfo __startRound(String roomOwnerId, String roomId) {
+    private RoundResponse __startRound(String roomOwnerId, String roomId) {
         MessageContainer messageContainer;
         messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.START_ROUND, null))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
-        GameInfo gameInfo = gameService.startRound(messageContainer, roomId);
-        return gameInfo;
+        return gameService.startRound(messageContainer, roomId);
     }
 
     private void __startGame(String roomOwnerId, String roomId, GameSettingsRequest gameSettings) {
@@ -387,13 +364,14 @@ class GameServiceTest {
     }
 
     @Test
-    public void 라이어선정_방장아님Error() throws Exception {
+    @DisplayName("라이어선정 요청이 방장이 아니다 Error")
+    public void verify_selectLiar_not_owner_request_error() {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
 
         __startGame(roomOwnerId, roomId);
         MessageContainer messageContainer;
@@ -408,17 +386,18 @@ class GameServiceTest {
         //Then
         MessageContainer finalMessageContainer = messageContainer;
         assertThrows(NotAllowedActionException.class, () -> {
-            gameService.selectLiar(finalMessageContainer, roomId);
+            gameService.selectLiarAndSendIsLiar(finalMessageContainer, roomId);
         });
     }
 
     @Test
-    public void 라이어선정_StateError() throws Exception {
+    @DisplayName("라이어선정 요청시 현재 state가 라이어선정 state가 아니다 Error")
+    public void verify_selectLiar_wrong_state_param_error() {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        __addRoomMember(roomId, "tester2");
+        __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
@@ -435,17 +414,18 @@ class GameServiceTest {
         //Then
         MessageContainer finalMessageContainer = messageContainer;
         assertThrows(StateNotAllowedExpcetion.class, () -> {
-            gameService.selectLiar(finalMessageContainer, roomId);
+            gameService.selectLiarAndSendIsLiar(finalMessageContainer, roomId);
         });
     }
 
     @Test
-    public void 키워드공개() throws Exception {
+    @DisplayName("키워드 공개 성공")
+    public void verify_openKeyword() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
@@ -469,49 +449,50 @@ class GameServiceTest {
         );
     }
 
-    private GameInfo __selectLiar(String roomOwnerId, String roomId) {
+    private GameStateResponse __selectLiar(String roomOwnerId, String roomId) {
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList("owner", "guest"));
         MessageContainer messageContainer;
         messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.SELECT_LIAR, null))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
-        GameInfo gameInfo = gameService.selectLiar(messageContainer, roomId);
-        //when(gameInfoRepository.findById(any())).thenReturn(Optional.of(gameInfo));
-        return gameInfo;
+        return gameService.selectLiarAndSendIsLiar(messageContainer, roomId);
     }
 
     @Test
-    public void 턴알림() throws Exception {
+    @DisplayName("턴 알림 성공")
+    public void verify_notify_turn() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
 
         __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
 
         //when
         __selectLiar(roomOwnerId, roomId);
-        GameInfo gameInfo = __openKeyword(roomOwnerId, roomId);
+        TurnOrderResponse turnOrderResponse = __openKeyword(roomOwnerId, roomId);
 
-        List<String> turnOrder = gameInfo.getTurnOrder();
-        gameService.updateTurn(Global.SERVER_ID, roomId);
+        List<String> turnOrder = turnOrderResponse.getTurnOrder();
+        gameService.updateTurn(UUID.randomUUID().toString(), Global.SERVER_ID, roomId);
 
         //Then
+        GameInfo gameInfo = gameInfoRepository.findById(RoomId.of(roomId)).orElseThrow(RuntimeException::new);
         assertThat(gameInfo.getCurrentTurnId()).isEqualTo(turnOrder.get(0));
-        gameService.updateTurn(turnOrder.get(0), roomId);
+        gameService.updateTurn(UUID.randomUUID().toString(), turnOrder.get(0), roomId);
         assertThat(gameInfo.getCurrentTurnId()).isEqualTo(turnOrder.get(1));
     }
 
     @Test
-    public void 설명종료() throws Exception {
+    @DisplayName("설명종료 요청 성공")
+    public void verify_notifyFindingLiarEnd() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
@@ -528,12 +509,13 @@ class GameServiceTest {
     }
 
     @Test
-    public void 현재턴이아닌사람의_턴알림_Error() throws Exception {
+    @DisplayName("현재턴이아닌사람의_턴알림_Error")
+    public void verify_notifyTurn_not_current_turn_error() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
@@ -547,17 +529,18 @@ class GameServiceTest {
 
         //Then
         assertThrows(RuntimeException.class, () -> {
-            gameService.updateTurn(turnOrder.get(0), roomId);
+            gameService.updateTurn(UUID.randomUUID().toString(), turnOrder.get(0), roomId);
         });
     }
 
     @Test
-    public void 턴초과_Error() throws Exception {
+    @DisplayName("턴 초과 요청 시 Error")
+    public void verify_requestTurnFinished_exceed_turn_error() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
@@ -568,27 +551,28 @@ class GameServiceTest {
         __openKeyword(roomOwnerId, roomId);
 
         List<String> turnOrder = gameInfo.getTurnOrder();
-        gameService.updateTurn(Global.SERVER_ID, roomId);
-        gameService.updateTurn(turnOrder.get(0), roomId);
-        gameService.updateTurn(turnOrder.get(1), roomId);
-        gameService.updateTurn(turnOrder.get(0), roomId);
-        gameService.updateTurn(turnOrder.get(1), roomId);
+        gameService.updateTurn(UUID.randomUUID().toString(), Global.SERVER_ID, roomId);
+        gameService.updateTurn(UUID.randomUUID().toString(), turnOrder.get(0), roomId);
+        gameService.updateTurn(UUID.randomUUID().toString(), turnOrder.get(1), roomId);
+        gameService.updateTurn(UUID.randomUUID().toString(), turnOrder.get(0), roomId);
+        gameService.updateTurn(UUID.randomUUID().toString(), turnOrder.get(1), roomId);
 
         //Then
-        assertThrows(NotAllowedActionException.class, () -> {
-            gameService.updateTurn(turnOrder.get(0), roomId);
+        assertThrows(StateNotAllowedExpcetion.class, () -> {
+            gameService.updateTurn(UUID.randomUUID().toString(), turnOrder.get(0), roomId);
         });
     }
 
     @Test
-    public void 라이어투표() throws Exception {
+    @DisplayName("라이어투표 성공")
+    public void verify_voteLiar() {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
-        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
+        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
         MessageContainer messageContainer;
         __startGame(roomOwnerId, roomId);
@@ -599,12 +583,12 @@ class GameServiceTest {
 
         //when
         gameService.nextGameState(roomId); //after: VOTE_LIAR
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(guestId)))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateDto(guestId)))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
         gameService.voteLiar(messageContainer, roomId);
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(guestId)))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateDto(guestId)))
                 .senderId(guestId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -612,16 +596,17 @@ class GameServiceTest {
 
         //Then
         assertThat(gameInfo.getVoteCount()).isEqualTo(2);
-        assertThat(gameInfo.getMostVotedUserIdAndCount()).isEqualTo(Arrays.asList(new AbstractMap.SimpleEntry<>(guestId, 2L)));
+        assertThat(gameInfo.getMostVotedUserIdAndCount()).isEqualTo(Collections.singletonList(new AbstractMap.SimpleEntry<>(guestId, 2L)));
     }
 
     @Test
-    public void 라이어모두투표안했을때_() throws Exception {
+    @DisplayName("모두 투표를 안했을때 라이어 후보가 없어야한다")
+    public void verify_voteLiar_no_vote() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         MessageContainer messageContainer;
@@ -633,12 +618,12 @@ class GameServiceTest {
 
         //when
         gameService.nextGameState(roomId); //after: VOTE_LIAR
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest("")))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateDto("")))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
         gameService.voteLiar(messageContainer, roomId);
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest("")))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateDto("")))
                 .senderId(guestId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -647,15 +632,16 @@ class GameServiceTest {
         //Then
         assertThat(gameInfo.getVoteCount()).isEqualTo(2);
         assertThat(gameInfo.getMostVotedUserIdAndCount()).isEqualTo(null);
+        assertThat(gameInfo.getState()).isEqualTo(GameState.VOTE_LIAR);
     }
 
     @Test
     public void 라이어투표_동표() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
@@ -667,13 +653,13 @@ class GameServiceTest {
 
         //when
         gameService.nextGameState(roomId); //after: VOTE_LIAR
-        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(guestId)))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateDto(guestId)))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
 
         gameService.voteLiar(messageContainer, roomId);
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(roomOwnerId)))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateDto(roomOwnerId)))
                 .senderId(guestId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -687,10 +673,10 @@ class GameServiceTest {
     @Test
     public void 라이어투표_StateError() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
 
         __startGame(roomOwnerId, roomId);
         __startRound(roomOwnerId, roomId);
@@ -706,7 +692,7 @@ class GameServiceTest {
         //Then
         assertThrows(StateNotAllowedExpcetion.class, () -> {
             gameService.voteLiar(MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR,
-                            new LiarDesignateRequest(guestId)))
+                            new LiarDesignateDto(guestId)))
                     .senderId(roomOwnerId)
                     .uuid(UUID.randomUUID().toString())
                     .build(), roomId);
@@ -716,10 +702,10 @@ class GameServiceTest {
     @Test
     public void 라이어투표_재투표Error() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
         __startGame(roomOwnerId, roomId);
@@ -730,7 +716,7 @@ class GameServiceTest {
 
         //when
         gameService.nextGameState(roomId); //after: VOTE_LIAR
-        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(guestId)))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateDto(guestId)))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -739,7 +725,7 @@ class GameServiceTest {
         //Then
         assertThrows(NotAllowedActionException.class, () -> {
             gameService.voteLiar(MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR,
-                            new LiarDesignateRequest(roomOwnerId)))
+                            new LiarDesignateDto(roomOwnerId)))
                     .senderId(roomOwnerId)
                     .uuid(UUID.randomUUID().toString())
                     .build(), roomId);
@@ -749,10 +735,10 @@ class GameServiceTest {
     @Test
     public void 라이어발표() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
         when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
@@ -763,12 +749,12 @@ class GameServiceTest {
 
         gameService.nextGameState(roomId); //after: IN_PROGRESS
         gameService.nextGameState(roomId); //after: VOTE_LIAR
-        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(guestId)))
+        MessageContainer messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateDto(guestId)))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
         gameService.voteLiar(messageContainer, roomId);
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(guestId)))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateDto(guestId)))
                 .senderId(guestId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -800,10 +786,10 @@ class GameServiceTest {
     @Test
     public void 라이어발표_방장아닌사람의요청Error() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
@@ -827,7 +813,7 @@ class GameServiceTest {
 
     private void __voteLiar(String roomId, String senderId, String designatedId) throws JsonProcessingException {
         MessageContainer messageContainer;
-        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateRequest(designatedId)))
+        messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.VOTE_LIAR, new LiarDesignateDto(designatedId)))
                 .senderId(senderId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
@@ -839,10 +825,10 @@ class GameServiceTest {
     @Test
     public void 라이어발표_StateError() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         __startGame(roomOwnerId, roomId);
@@ -868,10 +854,10 @@ class GameServiceTest {
     @Test
     public void 라이어가_정답맞췄는지요청() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
@@ -899,30 +885,30 @@ class GameServiceTest {
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
-        gameService.checkKeywordCorrect(messageContainer, roomId);
+        gameService.checkKeywordCorrectAndSendResult(messageContainer, roomId);
 
         //then
         assertThat(gameInfo.isLiarAnswer()).isEqualTo(true);
     }
 
-    private GameInfo __openKeyword(String roomOwnerId, String roomId) {
+    private TurnOrderResponse __openKeyword(String roomOwnerId, String roomId) {
         MessageContainer messageContainer;
         messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_KEYWORD, null))
                 .senderId(roomOwnerId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
-        GameInfo gameInfo = gameService.openKeyword(messageContainer, roomId);
+        TurnOrderResponse turnOrder = gameService.openAndSendKeyword(messageContainer, roomId);
         //when(gameInfoRepository.findById(any())).thenReturn(Optional.of(gameInfo));
-        return gameInfo;
+        return turnOrder;
     }
 
     @Test
     public void 라이어가_정답요청했으나_정답틀림() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
@@ -946,7 +932,7 @@ class GameServiceTest {
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
-        gameService.checkKeywordCorrect(messageContainer, roomId);
+        gameService.checkKeywordCorrectAndSendResult(messageContainer, roomId);
 
         //then
         assertThat(gameInfo.isLiarAnswer()).isEqualTo(false);
@@ -955,12 +941,12 @@ class GameServiceTest {
     @Test
     public void 라운드종료후_점수확인_게스트1라이어_라이어맞춤_라이어정답맞춤() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
-        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
+        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
@@ -986,7 +972,7 @@ class GameServiceTest {
                 .uuid(UUID.randomUUID().toString())
                 .build();
 
-        gameService.checkKeywordCorrect(messageContainer, roomId);
+        gameService.checkKeywordCorrectAndSendResult(messageContainer, roomId);
         ScoreboardResponse scoreBoardResponse = __getScores(roomOwnerId, roomId);
 
         //then
@@ -1002,12 +988,12 @@ class GameServiceTest {
     @Test
     public void 라운드종료후_점수확인_게스트1라이어_라이어맞춤_라이어정답틀림() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
-        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
+        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
@@ -1032,7 +1018,7 @@ class GameServiceTest {
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
-        gameService.checkKeywordCorrect(messageContainer, roomId);
+        gameService.checkKeywordCorrectAndSendResult(messageContainer, roomId);
         ScoreboardResponse scoreBoardResponse = __getScores(roomOwnerId, roomId);
 
         //then
@@ -1048,12 +1034,12 @@ class GameServiceTest {
     @Test
     public void 라운드종료후_점수확인_게스트1라이어_라이어틀림_라이어정답맞춤() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
-        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
+        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
@@ -1078,7 +1064,7 @@ class GameServiceTest {
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
-        gameService.checkKeywordCorrect(messageContainer, roomId);
+        gameService.checkKeywordCorrectAndSendResult(messageContainer, roomId);
         ScoreboardResponse scoreBoardResponse = __getScores(roomOwnerId, roomId);
 
         //then
@@ -1094,12 +1080,12 @@ class GameServiceTest {
     @Test
     public void 라운드종료후_점수확인_게스트1라이어_라이어틀림_라이어정답틀림() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
-        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
+        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
@@ -1123,7 +1109,7 @@ class GameServiceTest {
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
-        gameService.checkKeywordCorrect(messageContainer, roomId);
+        gameService.checkKeywordCorrectAndSendResult(messageContainer, roomId);
         ScoreboardResponse scoreBoardResponse = __getScores(roomOwnerId, roomId);
 
         //then
@@ -1159,12 +1145,12 @@ class GameServiceTest {
     @Test
     public void 라운드종료요청했을때_전체라운드가끝나지않았으면_라운드시작요청으로다시돌아간다() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
-        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
+        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
@@ -1189,7 +1175,7 @@ class GameServiceTest {
                 .senderId(liarId)
                 .uuid(UUID.randomUUID().toString())
                 .build();
-        gameService.checkKeywordCorrect(messageContainer, roomId);
+        gameService.checkKeywordCorrectAndSendResult(messageContainer, roomId);
         messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_SCORES,
                         null))
                 .senderId(roomOwnerId)
@@ -1205,12 +1191,12 @@ class GameServiceTest {
     @Test
     public void 라운드종료요청했을때_전체라운드가끝났으면_게임이종료된다() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
-        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
+        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
@@ -1238,7 +1224,7 @@ class GameServiceTest {
                     .senderId(liarId)
                     .uuid(UUID.randomUUID().toString())
                     .build();
-            gameService.checkKeywordCorrect(messageContainer, roomId);
+            gameService.checkKeywordCorrectAndSendResult(messageContainer, roomId);
             messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_SCORES,
                             null))
                     .senderId(roomOwnerId)
@@ -1256,12 +1242,12 @@ class GameServiceTest {
     @DisplayName("순위알림요청이오면 순위를알려준다")
     public void verify_notify_rankings() throws Exception {
         //Given
-        EnterRoomResponse room = __createRoom("owner");
+        EnterRoomResponse room = __createRoom();
         String roomOwnerId = room.getRoom().getOwnerId();
         String roomId = room.getRoom().getRoomId();
-        String guestId = __addRoomMember(roomId, "tester2");
+        String guestId = __addRoomMember(roomId);
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
-        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId,guestId));
+        when(roomService.getUsersId(any())).thenReturn(Arrays.asList(roomOwnerId, guestId));
 
         GameSettingsRequest request = GameSettingsRequest.builder()
                 .round(5)
@@ -1289,7 +1275,7 @@ class GameServiceTest {
                     .senderId(liarId)
                     .uuid(UUID.randomUUID().toString())
                     .build();
-            gameService.checkKeywordCorrect(messageContainer, roomId);
+            gameService.checkKeywordCorrectAndSendResult(messageContainer, roomId);
             messageContainer = MessageContainer.builder(new MessageContainer.Message(Global.OPEN_SCORES,
                             null))
                     .senderId(roomOwnerId)

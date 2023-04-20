@@ -79,6 +79,7 @@ public class RoomService {
         return roomId;
     }
 
+    @Transactional
     public RoomInfoResponse getRoom(RoomIdRequest request) {
         RoomId roomId = RoomId.of(request.getRoomId());
         Room room = roomRepository.findById(roomId).orElseThrow(() -> new NotExistException("Request Room name does not exist"));
@@ -90,6 +91,7 @@ public class RoomService {
         return userRepository.findByRoomId(roomId).stream().map(UserDataDto::toDto).collect(Collectors.toList());
     }
 
+    @Transactional
     public List<String> getUsersId(RoomIdRequest request) {
         return userRepository.findByRoomId(RoomId.of(request.getRoomId())).stream()
                 .map(UserDataDto::toDto).map(UserDataDto::getUserId).collect(Collectors.toList());

@@ -58,7 +58,7 @@ public class GameInfo {
     /**
      * TODO: 유저가 중간에 나가는경우도 고려해야함
      */
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(
             name = "turn_order",
             joinColumns = @JoinColumn(name = "game_id")
@@ -67,7 +67,7 @@ public class GameInfo {
     @Getter
     private List<String> turnOrder = new ArrayList<>(); //밸류 타입
 
-    @ElementCollection(fetch = FetchType.EAGER)
+    @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(
             name = "vote_result",
             joinColumns = @JoinColumn(name = "game_id")
@@ -99,12 +99,14 @@ public class GameInfo {
     }
 
     public String getCurrentTurnId() {
-        synchronized (this) {
-            log.info("[getCurrentTurnId] turn : {} turnOrder{}", currentTurn, turnOrder);
-            if (currentTurn >= turnOrder.size())
-                return turnOrder.get(currentTurn % turnOrder.size());
-            return turnOrder.get(currentTurn);
-        }
+        log.info("[getCurrentTurnId] turn : {} turnOrder: {}", currentTurn, turnOrder);
+        if (currentTurn >= turnOrder.size())
+            return turnOrder.get(currentTurn % turnOrder.size());
+        return turnOrder.get(currentTurn);
+    }
+
+    public boolean isTurnOver() {
+        return getCurrentTurn() >= getGameSettings().getTurn() * getTurnOrder().size();
     }
 
     public void initialize(Map<String, List<String>> subjects, List<String> categoryList) {
@@ -118,15 +120,13 @@ public class GameInfo {
     }
 
     public void nextTurn() {
-        synchronized (this) {
-            currentTurn++;
-            log.info("current turn is {}, room id : {}", currentTurn, roomId);
-        }
+        currentTurn++;
+        log.info("[nextTurn] Current turn is {}, room id : {}", currentTurn, roomId);
     }
 
     public void resetTurn() {
         currentTurn = -1;
-        log.info("current turn is {}, room id : {}", currentTurn, roomId);
+        log.info("[resetTurn] Current turn is {}, room id : {}", currentTurn, roomId);
     }
 
     public void selectLiar(String liar) {

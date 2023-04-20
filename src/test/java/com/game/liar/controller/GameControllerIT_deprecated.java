@@ -10,12 +10,13 @@ import com.game.liar.game.domain.GameInfo;
 import com.game.liar.game.domain.GameSettings;
 import com.game.liar.game.domain.GameState;
 import com.game.liar.game.domain.Global;
-import com.game.liar.game.dto.MessageBody;
+import com.game.liar.game.dto.MessageBase;
 import com.game.liar.game.dto.MessageContainer;
 import com.game.liar.game.dto.request.KeywordRequest;
-import com.game.liar.game.dto.request.LiarDesignateRequest;
+import com.game.liar.game.dto.LiarDesignateDto;
 import com.game.liar.game.dto.response.*;
 import com.game.liar.game.service.GameService;
+import com.game.liar.messagequeue.TimeoutManager;
 import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.dto.EnterRoomResponse;
 import com.game.liar.room.dto.UserDataDto;
@@ -113,7 +114,7 @@ class GameControllerIT_deprecated {
 
         assertThat(stompSession).isNotNull();
         assertThat(stompSession.isConnected()).isTrue();
-        gameController.setTimeout(20000);
+        TimeoutManager.setTimeout(20000);
 
         try {
             String roomId = 방생성("roomOwner");
@@ -573,8 +574,8 @@ class GameControllerIT_deprecated {
         System.out.println(LocalDateTime.now() + ":gameInfoResultFromOwner.getTurnOrder(): " + gameInfoResultFromOwner.getTurnOrder());
         System.out.println(LocalDateTime.now() + ":before public message arrived");
 
-        TurnResponse publicMessageToOwner = (TurnResponse) message1.getMessage().getBody();
-        TurnResponse publicMessageToUser = (TurnResponse) message2.getMessage().getBody();
+        CurrentTurnResponse publicMessageToOwner = (CurrentTurnResponse) message1.getMessage().getBody();
+        CurrentTurnResponse publicMessageToUser = (CurrentTurnResponse) message2.getMessage().getBody();
         assertThat(message1.getMessage().getMethod()).isEqualTo(Global.NOTIFY_TURN);
         assertThat(message2.getMessage().getMethod()).isEqualTo(Global.NOTIFY_TURN);
         assertThat(publicMessageToOwner.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(0));
@@ -615,8 +616,8 @@ class GameControllerIT_deprecated {
         //Then
         MessageContainer message1 = handler1.getCompletableFuture(0);
         MessageContainer message2 = handler2.getCompletableFuture(0);
-        TurnResponse publicMessageToOwner = (TurnResponse) message1.getMessage().getBody();
-        TurnResponse publicMessageToUser = (TurnResponse) message2.getMessage().getBody();
+        CurrentTurnResponse publicMessageToOwner = (CurrentTurnResponse) message1.getMessage().getBody();
+        CurrentTurnResponse publicMessageToUser = (CurrentTurnResponse) message2.getMessage().getBody();
         assertThat(message1.getMessage().getMethod()).isEqualTo(Global.NOTIFY_TURN);
         assertThat(message2.getMessage().getMethod()).isEqualTo(Global.NOTIFY_TURN);
         assertThat(publicMessageToOwner.getTurnId()).isEqualTo(gameInfoResultFromOwner.getTurnOrder().get(1));
@@ -626,7 +627,7 @@ class GameControllerIT_deprecated {
     @Test
     public void 턴알림_TimeOut시간을넘기면_턴이넘어간다() throws Exception {
         //Given
-        gameController.setTimeout(5000);
+        TimeoutManager.setTimeout(5000);
         __카테고리알림();
         System.out.println("턴알림=================================================================================================");
         //When
@@ -756,7 +757,7 @@ class GameControllerIT_deprecated {
     @Test
     public void 투표를안하면_타임아웃이난다() throws Exception {
         //Given
-        gameController.setTimeout(5000);
+        TimeoutManager.setTimeout(5000);
         __설명종료();
         System.out.println("투표=================================================================================================");
 
@@ -814,7 +815,7 @@ class GameControllerIT_deprecated {
                 .uuid(uuid)
                 .senderId(senderId)
                 .message(new MessageContainer.Message(VOTE_LIAR,
-                        new LiarDesignateRequest(liarDesignatedId)))
+                        new LiarDesignateDto(liarDesignatedId)))
                 .build();
         stompSession.send(String.format("%s%s", PUBLISH_PRIVATE, roomId), objectMapper.writeValueAsString(sendMessage));
     }
@@ -837,14 +838,14 @@ class GameControllerIT_deprecated {
         MessageContainer sendMessage = MessageContainer.messageContainerBuilder()
                 .uuid(uuid)
                 .senderId(ownerId)
-                .message(new MessageContainer.Message(VOTE_LIAR, new LiarDesignateRequest(liarDesignatedId)))
+                .message(new MessageContainer.Message(VOTE_LIAR, new LiarDesignateDto(liarDesignatedId)))
                 .build();
         stompSession.send(String.format("%s%s", PUBLISH_PRIVATE, roomId), objectMapper.writeValueAsString(sendMessage));
 
         sendMessage = MessageContainer.messageContainerBuilder()
                 .uuid(uuid)
                 .senderId(guestId)
-                .message(new MessageContainer.Message(VOTE_LIAR, new LiarDesignateRequest(ownerId)))
+                .message(new MessageContainer.Message(VOTE_LIAR, new LiarDesignateDto(ownerId)))
                 .build();
         sessionInfoList.get(0).session.send(String.format("%s%s", PUBLISH_PRIVATE, roomId), objectMapper.writeValueAsString(sendMessage));
 
@@ -1007,7 +1008,7 @@ class GameControllerIT_deprecated {
     @Test
     public void 라이어가정답을말하지못하면_타임아웃이_난다() throws Exception {
         //Given
-        gameController.setTimeout(5000);
+        TimeoutManager.setTimeout(5000);
         __라이어공개요청();
         //When
         TestStompHandlerChain<MessageContainer> handler1 = new TestStompHandlerChain<>(MessageContainer.class);
@@ -1130,7 +1131,7 @@ class GameControllerIT_deprecated {
 
         //When
         GameInfo gameInfo = gameService.getGame(RoomId.of(roomId));
-        gameController.setTimeout(20000);
+        TimeoutManager.setTimeout(20000);
 
         //TODO:completableFuture 사용하기
         __sendStartRound(UUID.randomUUID().toString());
@@ -1233,7 +1234,7 @@ class GameControllerIT_deprecated {
                 .uuid(uuid)
                 .senderId(SERVER_ID)
                 .message(new MessageContainer.Message(NOTIFY_TURN,
-                        new TurnResponse(GameState.IN_PROGRESS, gameInfo.getTurnOrder().get(i))))
+                        new CurrentTurnResponse(GameState.IN_PROGRESS, gameInfo.getTurnOrder().get(i))))
                 .build();
         assertThat(message1).isEqualTo(message2);
         assertThat(message1.getSenderId()).isEqualTo(expectMessage.getSenderId());
@@ -1338,7 +1339,7 @@ class GameControllerIT_deprecated {
     }
 
     private static class Util<T> {
-        public static <T extends MessageBody> MessageContainer getExpectedMessageContainer(String state, T expectedResponse) {
+        public static <T extends MessageBase> MessageContainer getExpectedMessageContainer(String state, T expectedResponse) {
             return MessageContainer.messageContainerBuilder()
                     .senderId(SERVER_ID)
                     .message(new MessageContainer.Message(state, expectedResponse))

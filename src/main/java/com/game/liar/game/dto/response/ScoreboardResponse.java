@@ -1,7 +1,7 @@
 package com.game.liar.game.dto.response;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.game.liar.game.dto.MessageBody;
+import com.game.liar.game.dto.MessageBase;
 import lombok.*;
 
 import java.util.Map;
@@ -14,7 +14,7 @@ import java.util.Map;
 @ToString
 @JsonDeserialize
 @Builder
-public class ScoreboardResponse extends MessageBody {
+public class ScoreboardResponse extends MessageBase {
     Map<String,Integer> scoreboard;
 
 }

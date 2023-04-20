@@ -10,10 +10,6 @@ import java.util.Objects;
 @Embeddable
 @ToString
 public class UserId implements Serializable {
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
-
     @Column(name="USER_ID")
     private String userId;
 
@@ -32,8 +28,8 @@ public class UserId implements Serializable {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        UserId userId = (UserId) o;
-        return Objects.equals(userId, userId.userId);
+        UserId userId1 = (UserId) o;
+        return userId.equals(userId1.userId);
     }
 
     @Override

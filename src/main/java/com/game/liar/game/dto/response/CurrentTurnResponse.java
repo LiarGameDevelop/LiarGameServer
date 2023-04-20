@@ -11,9 +11,7 @@ import lombok.*;
 @AllArgsConstructor
 @ToString
 @JsonDeserialize
-@Builder
-public class LiarAnswerResponse extends MessageBase {
+public class CurrentTurnResponse extends MessageBase {
     GameState state;
-    boolean answer;
-    String keyword;
+    String turnId;
 }
