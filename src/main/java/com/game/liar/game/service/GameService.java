@@ -1,7 +1,6 @@
 package com.game.liar.game.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.game.liar.exception.*;
 import com.game.liar.game.domain.GameInfo;
 import com.game.liar.game.domain.GameState;
@@ -12,6 +11,7 @@ import com.game.liar.game.dto.request.GameSettingsRequest;
 import com.game.liar.game.dto.request.KeywordRequest;
 import com.game.liar.game.dto.response.*;
 import com.game.liar.game.repository.GameInfoRepository;
+import com.game.liar.messagequeue.TimeoutEvent;
 import com.game.liar.messagequeue.TimeoutManager;
 import com.game.liar.room.domain.RoomId;
 import com.game.liar.room.dto.RoomIdRequest;
@@ -20,9 +20,11 @@ import com.game.liar.room.service.RoomService;
 import com.game.liar.user.domain.UserId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.TaskScheduler;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -37,10 +39,7 @@ public class GameService {
     private final GameSubjectService gameSubjectService;
     private final GameInfoRepository gameInfoRepository;
     private final MessageService messageService;
-    //private final TimerInfoThreadPoolTaskScheduler taskScheduler;
-    private final TaskScheduler taskScheduler;
     private final TimeoutManager timeoutManager;
-    private final long timeout = 20000;
 
     @Transactional
     public boolean checkRoomExist(RoomId roomId) {
@@ -299,7 +298,6 @@ public class GameService {
                 return;
             } else {
                 CurrentTurnResponse body = new CurrentTurnResponse(gameInfo.getState(), currentTurnId);
-                log.info("[API]requestTurnFinished response : {}", body);
                 messageService.sendPublicMessage(requestUUID, new MessageContainer.Message(NOTIFY_TURN, body), roomId);
                 registerTurnTimeoutNotification(requestUUID, roomId);
             }
@@ -634,14 +632,24 @@ public class GameService {
 
     private void registerLiarAnswerTimeoutNotification(String requestUUID, String roomId) {
         log.info("[API]register notifyAnswerTimeout from [room:{}]", roomId);
-        startAnswerTimer(roomId);
         timeoutManager.timerStart(requestUUID, roomId, TimeoutManager.TimeoutData.TimerType.ANSWER);
+        startAnswerTimer(roomId);
+    }
+
+    @EventListener
+    @Async
+    @Transactional
+    public void onTimeoutEvent(TimeoutEvent event) {
+        log.info("[TimeoutEvent] TimeoutEvent Added. event :{}", event);
+        try {
+            onTimeout(event.getData());
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Transactional
-    public void onTimeout(byte[] bytes) throws JsonProcessingException {
-        ObjectMapper objectMapper = new ObjectMapper();
-        TimeoutManager.TimeoutData message = objectMapper.readValue(new String(bytes), TimeoutManager.TimeoutData.class);
+    public void onTimeout(TimeoutManager.TimeoutData message) throws JsonProcessingException {
         String uuid = message.getUuid();
         String roomId = message.getRoomId();
         TimeoutManager.TimeoutData.TimerType timerType = message.getTimerType();
@@ -649,54 +657,15 @@ public class GameService {
         try {
             switch (timerType) {
                 case VOTE: {
-                    GameInfo gameInfo = getGame(RoomId.of(roomId));
-                    log.info("[API]timer triggered notifyVoteTimeout from [room:{}][timer:{}][game:{}]", roomId, this, gameInfo);
-                    if (!gameInfo.isVoteTimerRunning() || gameInfo.getState() != GameState.VOTE_LIAR) return;
-                    messageService.sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_VOTE_TIMEOUT, null), roomId);
-
-                    List<String> notVoteUserList = getNotVoteUserList(roomId);
-                    log.info("[API]notifyVoteTimeout notVote user :{}", notVoteUserList);
-                    for (String userId : notVoteUserList) {
-                        voteLiar(new MessageContainer(
-                                userId,
-                                new MessageContainer.Message(VOTE_LIAR, new LiarDesignateDto("")),
-                                UUID.randomUUID().toString()
-                        ), roomId);
-                        checkVoteResultAndSendMessage(new MessageContainer(
-                                userId,
-                                new MessageContainer.Message(VOTE_LIAR, new LiarDesignateDto("")),
-                                UUID.randomUUID().toString()
-                        ), roomId);
-                    }
+                    voteTimeout(uuid, roomId);
                     break;
                 }
                 case TURN: {
-                    GameInfo gameInfo = getGame(RoomId.of(roomId));
-                    log.info("[API]timer run notifyTurnTimeout from [room:{}][timer:{}][game:{}]", roomId, this, gameInfo);
-                    if (!gameInfo.isTurnTimerRunning() || gameInfo.getState() != GameState.IN_PROGRESS) {
-                        return;
-                    }
-                    log.info("[API]notifyTurnTimeout from [room:{}]", roomId);
-                    messageService.sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_TURN_TIMEOUT, null), roomId);
-
-                    String senderId = gameInfo.getCurrentTurnId();
-                    String currentTurnId = updateTurn(uuid, senderId, roomId);
-                    checkLastTurnAndSendYourTurnMessage(uuid, roomId, gameInfo, currentTurnId);
+                    turnTimeout(uuid, roomId);
                     break;
                 }
                 case ANSWER: {
-                    GameInfo gameInfo = getGame(RoomId.of(roomId));
-                    log.info("[API]timer triggered notifyAnswerTimeout from [room:{}][timer:{}][game:{}]", roomId, this, gameInfo);
-                    if (!gameInfo.isAnswerTimerRunning() || gameInfo.getState() != GameState.LIAR_ANSWER) return;
-                    messageService.sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_LIAR_ANSWER_TIMEOUT, null), roomId);
-                    MessageContainer request = new MessageContainer(
-                            gameInfo.getLiarId(),
-                            new MessageContainer.Message(CHECK_KEYWORD_CORRECT, new KeywordRequest("")),
-                            uuid);
-
-                    LiarAnswerResponse response = checkKeywordCorrect(request, roomId);
-                    log.info("[API]checkKeywordCorrect response : {}", response);
-                    messageService.sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_CORRECT, response), roomId);
+                    liarAnswerTimeout(uuid, roomId);
                     break;
                 }
                 default: {
@@ -706,6 +675,55 @@ public class GameService {
             }
         } catch (NotExistException e) {
             log.error("game room error");
+        }
+    }
+
+    private void liarAnswerTimeout(String uuid, String roomId) {
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
+        log.info("[API]timer triggered notifyAnswerTimeout from [room:{}][timer:{}][game:{}]", roomId, this, gameInfo);
+        if (!gameInfo.isAnswerTimerRunning() || gameInfo.getState() != GameState.LIAR_ANSWER) return;
+        messageService.sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_LIAR_ANSWER_TIMEOUT, null), roomId);
+        MessageContainer request = new MessageContainer(
+                gameInfo.getLiarId(),
+                new MessageContainer.Message(CHECK_KEYWORD_CORRECT, new KeywordRequest("")),
+                uuid);
+
+        LiarAnswerResponse response = checkKeywordCorrect(request, roomId);
+        log.info("[API]checkKeywordCorrect response : {}", response);
+        messageService.sendPublicMessage(UUID.randomUUID().toString(), new MessageContainer.Message(NOTIFY_LIAR_ANSWER_CORRECT, response), roomId);
+    }
+
+    private void turnTimeout(String uuid, String roomId) {
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
+        log.info("[API]timer triggered notifyTurnTimeout from [room:{}][timer:{}][game:{}]", roomId, this, gameInfo);
+        if (!gameInfo.isTurnTimerRunning() || gameInfo.getState() != GameState.IN_PROGRESS) {
+            return;
+        }
+        messageService.sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_TURN_TIMEOUT, null), roomId);
+
+        String senderId = gameInfo.getCurrentTurnId();
+        updateTurn(uuid, senderId, roomId);
+    }
+
+    private void voteTimeout(String uuid, String roomId) {
+        GameInfo gameInfo = getGame(RoomId.of(roomId));
+        log.info("[API]timer triggered notifyVoteTimeout from [room:{}][timer:{}][game:{}]", roomId, this, gameInfo);
+        if (!gameInfo.isVoteTimerRunning() || gameInfo.getState() != GameState.VOTE_LIAR) return;
+        messageService.sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_VOTE_TIMEOUT, null), roomId);
+
+        List<String> notVoteUserList = getNotVoteUserList(roomId);
+        log.info("[API]notifyVoteTimeout notVote user :{}", notVoteUserList);
+        for (String userId : notVoteUserList) {
+            voteLiar(new MessageContainer(
+                    userId,
+                    new MessageContainer.Message(VOTE_LIAR, new LiarDesignateDto("")),
+                    UUID.randomUUID().toString()
+            ), roomId);
+            checkVoteResultAndSendMessage(new MessageContainer(
+                    userId,
+                    new MessageContainer.Message(VOTE_LIAR, new LiarDesignateDto("")),
+                    UUID.randomUUID().toString()
+            ), roomId);
         }
     }
 
