@@ -144,13 +144,13 @@ public class GameController {
     ProcessGame openKeyword = (request, roomId) -> {
         gameService.openAndSendKeyword(request, roomId);
         //Notify first user turn after keyword opened
-        log.info("[API]__requestTurnFinished call from server. [room:{}]", roomId);
-        __requestTurnFinished(new MessageContainer(SERVER_ID, null, UUID.randomUUID().toString()), roomId);
+        log.info("[API]requestTurnFinished call from server. [room:{}]", roomId);
+        requestTurnFinished(new MessageContainer(SERVER_ID, null, UUID.randomUUID().toString()), roomId);
     };
 
-    ProcessGame requestTurnFinished = this::__requestTurnFinished;
+    ProcessGame requestTurnFinished = this::requestTurnFinished;
 
-    private void __requestTurnFinished(MessageContainer request, String roomId) {
+    private void requestTurnFinished(MessageContainer request, String roomId) {
         log.info("[API]requestTurnFinished request : {}", request);
         String senderId = request.getSenderId();
         gameService.updateTurn(request.getUuid(), senderId, roomId);

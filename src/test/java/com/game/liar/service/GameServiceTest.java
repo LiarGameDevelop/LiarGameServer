@@ -60,7 +60,7 @@ class GameServiceTest {
 
     @BeforeEach
     public void init() {
-        gameService = new GameService(roomService, gameSubjectService, gameInfoRepository, messageService, taskScheduler, timeoutManager);
+        gameService = new GameService(roomService, gameSubjectService, gameInfoRepository, messageService, timeoutManager);
         gameService.clearGame();
     }
 

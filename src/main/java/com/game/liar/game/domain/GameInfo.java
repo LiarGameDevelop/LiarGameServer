@@ -121,12 +121,12 @@ public class GameInfo {
 
     public void nextTurn() {
         currentTurn++;
-        log.info("[nextTurn] Current turn is {}, room id : {}", currentTurn, roomId);
+        log.debug("[nextTurn] Current turn is {}, room id : {}", currentTurn, roomId);
     }
 
     public void resetTurn() {
         currentTurn = -1;
-        log.info("[resetTurn] Current turn is {}, room id : {}", currentTurn, roomId);
+        log.debug("[resetTurn] Current turn is {}, room id : {}", currentTurn, roomId);
     }
 
     public void selectLiar(String liar) {
