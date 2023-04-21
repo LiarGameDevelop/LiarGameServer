@@ -702,8 +702,7 @@ public class GameService {
         messageService.sendPublicMessage(uuid, new MessageContainer.Message(NOTIFY_TURN_TIMEOUT, null), roomId);
 
         String senderId = gameInfo.getCurrentTurnId();
-        String currentTurnId = updateTurn(uuid, senderId, roomId);
-        checkLastTurnAndSendYourTurnMessage(uuid, roomId, gameInfo, currentTurnId);
+        updateTurn(uuid, senderId, roomId);
     }
 
     private void voteTimeout(String uuid, String roomId) {
